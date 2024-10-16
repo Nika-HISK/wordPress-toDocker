@@ -1,0 +1,48 @@
+
+    version: '3.8'
+    services:
+      db:
+        image: mysql:5.7
+        container_name: wordpress-db
+        environment:
+          MYSQL_ROOT_PASSWORD: root_password
+          MYSQL_DATABASE: wordpress_db
+          MYSQL_USER: wordpress_user
+          MYSQL_PASSWORD: strong_password
+        ports:
+          - "3307:3306"
+        volumes:
+          - db_data:/var/lib/mysql
+        networks:
+          - wp-net
+
+      wordpress:
+        image: wordpress:latest
+        container_name: wordpress
+        depends_on:
+          - db
+        environment:
+          WORDPRESS_DB_HOST: db:3306
+          WORDPRESS_DB_NAME: wordpress_db
+          WORDPRESS_DB_USER: wordpress_user
+          WORDPRESS_DB_PASSWORD: strong_password
+          WORDPRESS_TABLE_PREFIX: wp_
+          WORDPRESS_CONFIG_EXTRA: |
+            define('WP_DEBUG', false);
+            define('WP_SITEURL', 'http://localhost:8000');
+            define('WP_HOME', 'http://localhost:8000');
+            define('WPLANG', 'en_US');
+        ports:
+          - "8000:80"
+        volumes:
+          - ./wordpress:/var/www/html
+          - ./custom/wp-config.php:/var/www/html/wp-config.php  # Mount custom wp-config.php
+        networks:
+          - wp-net
+
+    networks:
+      wp-net:
+
+    volumes:
+      db_data:
+    

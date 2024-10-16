@@ -1,10 +1,10 @@
 import { Module } from '@nestjs/common';
-import { WpController } from './wp.controller';
-import { WpService } from './wp.service';
-import { DockerService } from 'src/docker/docker.service';
+import { WordPressController } from './wp.controller';
+import { WordPressService } from './wp.service';
+
 
 @Module({
-  controllers: [WpController],
-  providers: [WpService,DockerService]
+  controllers: [WordPressController],
+  providers: [WordPressService],
 })
-export class WpModule {}
+export class WordPressModule {}
