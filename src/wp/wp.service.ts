@@ -25,6 +25,7 @@ export class WpService {
     } = createWordPressDto;
 
     const projectPath = path.join(__dirname, '..', 'projects', siteName);
+    const dockerfilePath = path.join(projectPath, 'Dockerfile');
     const dockerComposePath = path.join(projectPath, 'docker-compose.yml');
     const wordpressDir = path.join(projectPath, 'wordpress');
 
@@ -46,18 +47,7 @@ export class WpService {
         await this.createFreshWordPress(wordpressDir);
       }
 
-      // Modify wp-config.php file
-      const wpConfigPath = path.join(wordpressDir, 'wp-config.php');
-      this.modifyWpConfig(wpConfigPath, {
-        dbUser,
-        dbPassword,
-        dbName,
-        adminUser,
-        adminPassword,
-        siteName,
-        language,
-      });
-
+      // Generate and save Docker Compose
       const dockerComposeContent = this.generateDockerComposeFile({
         dbUser,
         dbPassword,
@@ -67,11 +57,22 @@ export class WpService {
       });
       fs.writeFileSync(dockerComposePath, dockerComposeContent);
 
+      // Generate and save Dockerfile
+      const dockerFileContent = this.generateDockerFile({
+        dbUser,
+        dbPassword,
+        dbName,
+        adminUser,
+        adminPassword,
+      });
+      fs.writeFileSync(dockerfilePath, dockerFileContent);
+
       // Generate and save the NGINX configuration
       const nginxConfigPath = path.join(projectPath, 'nginx.conf');
       const nginxConfigContent = this.generateNginxConfig();
       fs.writeFileSync(nginxConfigPath, nginxConfigContent);
 
+      // Run Docker Compose
       await this.runDockerCompose(projectPath);
 
       return { message: 'WordPress installation is being set up!' };
@@ -130,18 +131,69 @@ export class WpService {
     });
   }
 
+  private generateDockerFile({
+    dbUser,
+    dbPassword,
+    dbName,
+    adminUser,
+    adminPassword,
+  }): string {
+    return `
+ # Use the official WordPress image as the base image
+FROM wordpress:latest
+
+ARG WORDPRESS_DB_NAME
+ARG WORDPRESS_DB_USER
+ARG WORDPRESS_DB_PASSWORD
+ARG WORDPRESS_DB_HOST
+
+# Install necessary dependencies and WP-CLI
+RUN apt-get update && apt-get install -y \\
+    less \\
+    mariadb-client \\
+    curl \\
+    sudo \\
+    unzip \\
+    && rm -rf /var/lib/apt/lists/*
+
+# Download WP-CLI
+RUN curl -O https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar
+
+# Make WP-CLI executable
+RUN chmod +x wp-cli.phar
+
+# Move WP-CLI to a directory in the PATH
+RUN mv wp-cli.phar /usr/local/bin/wp
+
+RUN echo "Configuring wp-config.php file" && \\
+    wp config create \\
+        --dbname=${dbName} \\
+        --dbuser=${dbUser} \\
+        --dbpass=${dbPassword} \\
+        --dbhost=db \\
+        --path=/var/www/html --allow-root
+
+RUN wp core install --url="http://localhost:8080" \\
+    --title="My WordPress Site" \\
+    --admin_user="admin" \\
+    --admin_password="admin_password" \\
+    --admin_email="admin@example.com" --allow-root
+    `;
+  }
+
   private generateDockerComposeFile({
     dbUser,
     dbPassword,
     dbName,
     adminUser,
     adminPassword,
-}): string {
+  }): string {
     return `
 version: '3.8'
 
 services:
   wordpress:
+    build: .
     image: wordpress:latest
     ports:
       - "8000:80"
@@ -180,87 +232,7 @@ services:
 volumes:
   wordpress_data:
   db_data:
-`;
-  }
-
-  private modifyWpConfig(
-    wpConfigPath: string,
-    {
-      dbUser,
-      dbPassword,
-      dbName,
-      adminUser,
-      adminPassword,
-      siteName,
-      language,
-    },
-  ): void {
-    const sampleConfigPath = path.join(
-      path.dirname(wpConfigPath),
-      'wp-config-sample.php',
-    );
-
-    if (fs.existsSync(sampleConfigPath)) {
-      fs.renameSync(sampleConfigPath, wpConfigPath);
-      console.log(
-        `Renamed wp-config-sample.php to wp-config.php at: ${wpConfigPath}`,
-      );
-    }
-
-    const wpConfigContent = `
-<?php
-/** The name of the database for WordPress */
-define('DB_NAME', '${dbName}');
-    
-/** MySQL database username */
-define('DB_USER', '${dbUser}');
-    
-/** MySQL database password */
-define('DB_PASSWORD', '${dbPassword}');
-    
-/** MySQL hostname */
-define('DB_HOST', 'db');
-
-/** Database Charset to use in creating database tables. */
-define('DB_CHARSET', 'utf8');
-
-/** The Database Collate type. Don't change this if in doubt. */
-define('DB_COLLATE', '');
-
-/** Authentication Unique Keys and Salts. */
-/* You can add the keys and salts here, or generate them dynamically */
-
-/** WordPress Database Table prefix. */
-$table_prefix = 'wp_';
-
-/** Sets up WordPress vars and included files. */
-require_once ABSPATH . 'wp-settings.php';
-
-/** Custom Site Configuration */
-define('WP_SITEURL', 'http://localhost:8000');
-define('WP_HOME', 'http://localhost:8000');
-define('WP_DEBUG', true);
-define('WP_AUTO_UPDATE_CORE', false);
-define('WP_INSTALLING', true);
-
-// Automatically create admin user and bypass setup prompts
-if (!username_exists('${adminUser}')) {
-    $user_id = wp_create_user('${adminUser}', '${adminPassword}', '${adminUser}@example.com');
-    $user = new WP_User($user_id);
-    $user->set_role('administrator');
-}
-
-// Set default site settings
-if (get_option('blogname') == '') {
-    update_option('blogname', '${siteName}');
-}
-
-// Bypass language selection
-update_option('WPLANG', '${language}');
-`;
-
-    fs.writeFileSync(wpConfigPath, wpConfigContent);
-    console.log(`wp-config.php modified at: ${wpConfigPath}`);
+    `;
   }
 
   private async createFreshWordPress(wordpressDir: string): Promise<void> {
@@ -313,6 +285,6 @@ server {
         proxy_set_header X-Forwarded-Proto $scheme;
     }
 }
-`;
+    `;
   }
 }
