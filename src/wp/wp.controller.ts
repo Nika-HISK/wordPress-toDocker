@@ -1,18 +1,13 @@
-import { Controller, Post, Body, UploadedFile, UseInterceptors } from '@nestjs/common';
-import { FileInterceptor } from '@nestjs/platform-express';
-import { WpService } from './wp.service';
-import { CreateWordPressDto } from './wp.interface';
+import { Controller, Post } from '@nestjs/common';
+import { WordpressService } from './wp.service';
 
-@Controller('wp')
-export class WpController {
-    constructor(private readonly wpService: WpService) {}
 
-    @Post('create')
-    @UseInterceptors(FileInterceptor('file')) // Handle file uploads
-    async createWordPress(
-        @Body() createWordPressDto: CreateWordPressDto,
-        @UploadedFile() file: Express.Multer.File
-    ) {
-        return this.wpService.createWordPress(createWordPressDto, file);
-    }
+@Controller('wordpress')
+export class WordpressController {
+  constructor(private readonly wordpressService: WordpressService) {}
+
+  @Post('setup')
+  async setupWordpress(): Promise<string> {
+    return this.wordpressService.setupWordpress();
+  }
 }

@@ -1,290 +1,118 @@
 import { Injectable } from '@nestjs/common';
-import * as fs from 'fs';
-import * as path from 'path';
 import { exec } from 'child_process';
-import * as unzipper from 'unzipper';
-import { CreateWordPressDto } from './wp.interface';
-import { DockerService } from 'src/docker/docker.service';
+import { promisify } from 'util';
+const execAsync = promisify(exec);
 
 @Injectable()
-export class WpService {
-  constructor(private readonly dockerService: DockerService) {}
-
-  async createWordPress(
-    createWordPressDto: CreateWordPressDto,
-    file: Express.Multer.File,
-  ) {
-    const {
-      siteName,
-      adminUser,
-      adminPassword,
-      dbName,
-      dbUser,
-      dbPassword,
-      language,
-    } = createWordPressDto;
-
-    const projectPath = path.join(__dirname, '..', 'projects', siteName);
-    const dockerfilePath = path.join(projectPath, 'Dockerfile');
-    const dockerComposePath = path.join(projectPath, 'docker-compose.yml');
-    const wordpressDir = path.join(projectPath, 'wordpress');
-
-    this.createDirectory(projectPath);
-
+export class WordpressService {
+  async setupWordpress(): Promise<string> {
     try {
-      if (file) {
-        const extractedPath = await this.extractWordPress(file, projectPath);
-        console.log(`Extracted WordPress files to: ${extractedPath}`);
+      console.log('Starting WordPress setup process...');
 
-        const nestedWordpressDir = path.join(extractedPath, 'wordpress');
-        if (fs.existsSync(nestedWordpressDir)) {
-          console.log('Detected nested WordPress folder, adjusting paths...');
-          this.moveFilesOutOfNestedFolder(nestedWordpressDir, wordpressDir);
-        } else {
-          this.createDirectory(wordpressDir);
-        }
-      } else {
-        await this.createFreshWordPress(wordpressDir);
-      }
-
-      // Generate and save Docker Compose
-      const dockerComposeContent = this.generateDockerComposeFile({
-        dbUser,
-        dbPassword,
-        dbName,
-        adminUser,
-        adminPassword,
-      });
-      fs.writeFileSync(dockerComposePath, dockerComposeContent);
-
-      // Generate and save Dockerfile
-      const dockerFileContent = this.generateDockerFile({
-        dbUser,
-        dbPassword,
-        dbName,
-        adminUser,
-        adminPassword,
-      });
-      fs.writeFileSync(dockerfilePath, dockerFileContent);
-
-      // Generate and save the NGINX configuration
-      const nginxConfigPath = path.join(projectPath, 'nginx.conf');
-      const nginxConfigContent = this.generateNginxConfig();
-      fs.writeFileSync(nginxConfigPath, nginxConfigContent);
-
-      // Run Docker Compose
-      await this.runDockerCompose(projectPath);
-
-      return { message: 'WordPress installation is being set up!' };
-    } catch (error) {
-      console.error(`Error during WordPress setup: ${error}`);
-      throw error;
-    }
-  }
-
-  private createDirectory(dirPath: string) {
-    if (!fs.existsSync(dirPath)) {
-      fs.mkdirSync(dirPath, { recursive: true });
-    }
-  }
-
-  private moveFilesOutOfNestedFolder(nestedDir: string, targetDir: string) {
-    const files = fs.readdirSync(nestedDir);
-    for (const file of files) {
-      const oldPath = path.join(nestedDir, file);
-      const newPath = path.join(targetDir, file);
-      fs.renameSync(oldPath, newPath);
-    }
-    fs.rmdirSync(nestedDir);
-  }
-
-  private extractWordPress(
-    file: Express.Multer.File,
-    projectPath: string,
-  ): Promise<string> {
-    const extractDir = path.join(projectPath, 'wordpress');
-    const tempZipPath = path.join(projectPath, 'temp.zip');
-
-    return new Promise((resolve, reject) => {
-      this.createDirectory(extractDir);
-      fs.writeFile(tempZipPath, file.buffer, (err) => {
-        if (err) {
-          console.error(`Error writing temp file: ${err}`);
-          return reject(err);
-        }
-
-        fs.createReadStream(tempZipPath)
-          .pipe(unzipper.Extract({ path: extractDir }))
-          .on('close', () => {
-            fs.unlink(tempZipPath, (unlinkErr) => {
-              if (unlinkErr) {
-                console.error(`Error deleting temp file: ${unlinkErr}`);
-              }
-            });
-            resolve(extractDir);
-          })
-          .on('error', (extractErr) => {
-            console.error(`Extraction error: ${extractErr}`);
-            reject(extractErr);
-          });
-      });
-    });
-  }
-
-  private generateDockerFile({
-    dbUser,
-    dbPassword,
-    dbName,
-    adminUser,
-    adminPassword,
-  }): string {
-    return `
- # Use the official WordPress image as the base image
-FROM wordpress:latest
-
-ARG WORDPRESS_DB_NAME
-ARG WORDPRESS_DB_USER
-ARG WORDPRESS_DB_PASSWORD
-ARG WORDPRESS_DB_HOST
-
-# Install necessary dependencies and WP-CLI
-RUN apt-get update && apt-get install -y \\
-    less \\
-    mariadb-client \\
-    curl \\
-    sudo \\
-    unzip \\
-    && rm -rf /var/lib/apt/lists/*
-
-# Download WP-CLI
-RUN curl -O https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar
-
-# Make WP-CLI executable
-RUN chmod +x wp-cli.phar
-
-# Move WP-CLI to a directory in the PATH
-RUN mv wp-cli.phar /usr/local/bin/wp
-
-RUN echo "Configuring wp-config.php file" && \\
-    wp config create \\
-        --dbname=${dbName} \\
-        --dbuser=${dbUser} \\
-        --dbpass=${dbPassword} \\
-        --dbhost=db \\
-        --path=/var/www/html --allow-root
-
-RUN wp core install --url="http://localhost:8080" \\
-    --title="My WordPress Site" \\
-    --admin_user="admin" \\
-    --admin_password="admin_password" \\
-    --admin_email="admin@example.com" --allow-root
-    `;
-  }
-
-  private generateDockerComposeFile({
-    dbUser,
-    dbPassword,
-    dbName,
-    adminUser,
-    adminPassword,
-  }): string {
-    return `
-version: '3.8'
+      // Step 1: Create docker-compose.yml
+      console.log('Creating docker-compose.yml file...');
+      const dockerComposeYml = `
+version: '3.8' 
 
 services:
+  db:
+    image: mysql:5.7
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: paroli123
+      MYSQL_DATABASE: ramedb
+      MYSQL_USER: nika_chinchaladze
+      MYSQL_PASSWORD: paroli123
+    volumes:
+      - db_data:/var/lib/mysql
+
   wordpress:
-    build: .
     image: wordpress:latest
+    restart: always
+    depends_on:
+      - db
     ports:
       - "8000:80"
     environment:
       WORDPRESS_DB_HOST: db
-      WORDPRESS_DB_USER: ${dbUser}
-      WORDPRESS_DB_PASSWORD: ${dbPassword}
-      WORDPRESS_DB_NAME: ${dbName}
-      WORDPRESS_ADMIN_USER: ${adminUser}
-      WORDPRESS_ADMIN_PASSWORD: ${adminPassword}
-    volumes:
-      - wordpress_data:/var/www/html
-
-  db:
-    image: mysql:5.7
-    environment:
-      MYSQL_ROOT_PASSWORD: ${dbPassword}
-      MYSQL_DATABASE: ${dbName}
-      MYSQL_USER: ${dbUser}
-      MYSQL_PASSWORD: ${dbPassword}
-    volumes:
-      - db_data:/var/lib/mysql
-
-  nginx:
-    image: nginx:latest
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./nginx.conf:/etc/nginx/conf.d/default.conf
-      - ./certs/nginx.crt:/etc/nginx/ssl/nginx.crt
-      - ./certs/nginx.key:/etc/nginx/ssl/nginx.key
-    depends_on:
-      - wordpress
+      WORDPRESS_DB_USER: nika_chinchaladze
+      WORDPRESS_DB_PASSWORD: paroli123
 
 volumes:
-  wordpress_data:
   db_data:
-    `;
-  }
+      `;
 
-  private async createFreshWordPress(wordpressDir: string): Promise<void> {
-    this.createDirectory(wordpressDir);
+      const fs = require('fs');
+      const path = require('path');
+      const filePath = path.join(__dirname, 'docker-compose.yml');
 
-    return new Promise((resolve, reject) => {
-      exec(
-        `curl -o wordpress.zip https://wordpress.org/latest.zip && unzip wordpress.zip -d ${wordpressDir}`,
-        { cwd: wordpressDir },
-        (error, stdout, stderr) => {
-          if (error) {
-            console.error(`Error downloading WordPress: ${stderr}`);
-            reject(error);
-            return;
-          }
-          console.log(`WordPress downloaded and extracted to: ${wordpressDir}`);
-          resolve();
-        },
-      );
-    });
-  }
+      // Write to the docker-compose.yml file in the current directory
+      await fs.promises.writeFile(filePath, dockerComposeYml.trim());
+      console.log('docker-compose.yml file created.');
 
-  private async runDockerCompose(projectPath: string): Promise<void> {
-    return new Promise((resolve, reject) => {
-      exec(
-        `docker-compose up -d`,
-        { cwd: projectPath },
-        (error, stdout, stderr) => {
-          if (error) {
-            reject(`Error running Docker Compose: ${stderr}`);
-            return;
-          }
-          resolve();
-        },
-      );
-    });
-  }
+      // Step 2: Start Docker services
+      console.log('Starting Docker services...');
+      await execAsync('docker-compose up -d', { cwd: __dirname });
+      console.log('Docker services started.');
 
-  private generateNginxConfig(): string {
-    return `
-server {
-    listen 80;
-    server_name localhost;
+      // Step 3: Wait for the services to be ready
+      console.log('Waiting for services to be ready...');
+      await this.sleep(2000); // Adjust sleep time if necessary
 
-    location / {
-        proxy_pass http://wordpress:80;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
+      // Step 4: Get Docker container name
+      console.log('Retrieving WordPress container name...');
+      const { stdout } = await execAsync('docker ps --filter "ancestor=wordpress" --format "{{.Names}}"');
+      const wordpressContainerName = stdout.trim();
+      console.log(`WordPress container name: ${wordpressContainerName}`);
+
+      // Step 5: Install necessary packages inside the container
+      console.log('Updating packages and installing curl...');
+      await execAsync(`docker exec ${wordpressContainerName} apt-get update`);
+      await execAsync(`docker exec ${wordpressContainerName} apt-get install -y curl`);
+
+      // Step 6: Install WP-CLI
+      console.log('Downloading WP-CLI...');
+      await execAsync(`docker exec ${wordpressContainerName} curl -O https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar`);
+      await execAsync(`docker exec ${wordpressContainerName} chmod +x wp-cli.phar`);
+      await execAsync(`docker exec ${wordpressContainerName} mv wp-cli.phar /usr/local/bin/wp`);
+      console.log('WP-CLI installed.');
+      await this.sleep(55000);
+      // Step 7: Check if wp-config.php exists
+      console.log('Checking for existing wp-config.php...');
+      const checkConfigCmd = `docker exec ${wordpressContainerName} ls /var/www/html/wp-config.php`;
+      try {
+        await execAsync(checkConfigCmd);
+        console.log('wp-config.php exists. Removing...');
+        await execAsync(`docker exec ${wordpressContainerName} rm /var/www/html/wp-config.php`);
+        console.log('wp-config.php removed.');
+      } catch (error) {
+        console.log('wp-config.php does not exist. No need to remove.');
+      }
+      await this.sleep(20000);
+      // Step 8: Generate new wp-config.php using WP-CLI
+      console.log('Creating new wp-config.php...');
+      await execAsync(`docker exec ${wordpressContainerName} wp config create --dbname=ramedb --dbuser=nika_chinchaladze --dbpass=paroli123 --dbhost=db --path=/var/www/html --allow-root`);
+      console.log('wp-config.php created.');
+      
+      // Step 9: Install WordPress
+      console.log('Installing WordPress...');
+      await execAsync(`docker exec ${wordpressContainerName} wp core install --url="http://localhost:8000" --title="Your Site Title" --admin_user="admin" --admin_password="adminpass" --admin_email="admin@example.com" --skip-email --allow-root`);
+      await this.sleep(15000);
+      // Step 10: Install and activate language
+      console.log('Installing and activating language...');
+      await execAsync(`docker exec ${wordpressContainerName} wp language core install en_US --activate --allow-root`);
+      await this.sleep(2000);
+      console.log('WordPress setup complete!');
+      return 'WordPress setup complete!';
+      
+    } catch (error) {
+      console.error('Error during WordPress setup:', error);
+      throw new Error('WordPress setup failed');
     }
-}
-    `;
+  }
+
+  // Helper function to introduce delays
+  private sleep(ms: number): Promise<void> {
+    return new Promise(resolve => setTimeout(resolve, ms));
   }
 }
