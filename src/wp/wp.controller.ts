@@ -1,4 +1,5 @@
-import { Controller, Post } from '@nestjs/common';
+import { Controller, Post, Body, Res, HttpStatus } from '@nestjs/common';
+import { Response } from 'express';
 import { WordpressService } from './wp.service';
 
 
@@ -7,7 +8,15 @@ export class WordpressController {
   constructor(private readonly wordpressService: WordpressService) {}
 
   @Post('setup')
-  async setupWordpress(): Promise<string> {
-    return this.wordpressService.setupWordpress();
+  async setupWordpress(@Body() body: any, @Res() res: Response) {
+    try {
+      const message = await this.wordpressService.setupWordpress(body);
+      return res.status(HttpStatus.OK).json({ message });
+    } catch (error) {
+      return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
+        message: 'WordPress setup failed.',
+        error: error.message,
+      });
+    }
   }
 }
