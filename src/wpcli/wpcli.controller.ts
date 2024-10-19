@@ -1,4 +1,4 @@
-import { Controller, Post, Param, Body } from '@nestjs/common';
+import { Controller, Post, Param, Body, Get } from '@nestjs/common';
 import { WpCliService } from './wpcli.service';
 
 @Controller('wp-cli')
@@ -29,6 +29,11 @@ export class WpCliController {
   @Post('import')
   async wpImport(@Body('args') args: string) {
     return this.wpCliService.wpImport(args);
+  }
+
+  @Post('language/set')
+  async wpSetLanguage(@Body('args') args: string) {
+    return this.wpCliService.wpSetLanguage(args);
   }
 
   @Post('language/:subCommand')
@@ -103,5 +108,10 @@ export class WpCliController {
     @Body('args') args: string,
   ) {
     return this.wpCliService.wpRole(subCommand, args);
+  }
+
+  @Get('option/get/:optionName')
+  async getOption(@Param('optionName') optionName: string) {
+    return this.wpCliService.getOption(optionName);
   }
 }

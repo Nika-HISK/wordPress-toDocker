@@ -38,11 +38,16 @@ export class WpCliService {
   }
 
   async wpLanguage(subCommand: string, args: string): Promise<string> {
-    return this.execWpCli(`language ${subCommand} ${args}`);
+    return this.execWpCli(`language core ${subCommand} ${args}`);
+  }
+
+  async wpSetLanguage(language: string): Promise<string> {
+    return this.execWpCli(`option update WPLANG "${language}"`);
   }
 
   async wpMaintenance(mode: 'enable' | 'disable'): Promise<string> {
-    return this.execWpCli(`maintenance-mode ${mode}`);
+    const subCommand = mode === 'enable' ? 'activate' : 'deactivate';
+    return this.execWpCli(`maintenance-mode ${subCommand}`);
   }
 
   async wpMedia(subCommand: string, args: string): Promise<string> {
@@ -51,6 +56,10 @@ export class WpCliService {
 
   async wpOption(subCommand: string, args: string): Promise<string> {
     return this.execWpCli(`option ${subCommand} ${args}`);
+  }
+
+  async getOption(optionName: string): Promise<string> {
+    return this.execWpCli(`option get ${optionName}`);
   }
 
   async wpPlugin(subCommand: string, args: string): Promise<string> {
