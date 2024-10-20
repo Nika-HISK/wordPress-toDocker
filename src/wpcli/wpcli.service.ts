@@ -15,10 +15,22 @@ export class WpCliService {
 
   private async execWpCli(command: string): Promise<string> {
     const containerName = await this.getContainerName();
-    const { stdout } = await execAsync(
-      `docker exec ${containerName} wp ${command} --allow-root`,
-    );
-    return stdout;
+    try {
+      const { stdout, stderr } = await execAsync(
+        `docker exec ${containerName} wp ${command} --allow-root`,
+      );
+      if (stderr) {
+        console.warn(`WP-CLI stderr: ${stderr}`);
+      }
+      return stdout.trim();
+    } catch (error) {
+      console.error(`Command execution failed: ${error.message}`);
+      throw new Error(error.message);
+    }
+  }
+
+  async installPackage(packageName: string): Promise<string> {
+    return this.execWpCli(`package install ${packageName} --allow-root`);
   }
 
   async wpCap(subCommand: string, args: string): Promise<string> {
@@ -29,8 +41,25 @@ export class WpCliService {
     return this.execWpCli(`cache ${subCommand} ${args}`);
   }
 
-  async wpExport(args: string): Promise<string> {
-    return this.execWpCli(`export ${args}`);
+  async wpExport(
+    dir: string = '/tmp',
+    skipComments: boolean = false,
+  ): Promise<string> {
+    const skipCommentsFlag = skipComments ? '--skip_comments' : '';
+    return this.execWpCli(`export --dir=${dir} ${skipCommentsFlag}`.trim());
+  }
+
+  async copyFileToContainer(filePath: string): Promise<string> {
+    const containerName = await this.getContainerName();
+    const targetPath = '/tmp/' + filePath.split('\\').pop();
+    const command = `docker cp "${filePath}" ${containerName}:${targetPath}`;
+
+    try {
+      await execAsync(command);
+      return `File copied to ${targetPath}`;
+    } catch (error) {
+      throw new Error(`Failed to copy file: ${error.message}`);
+    }
   }
 
   async wpImport(args: string): Promise<string> {
@@ -51,6 +80,9 @@ export class WpCliService {
   }
 
   async wpMedia(subCommand: string, args: string): Promise<string> {
+    if (subCommand === 'image-size') {
+      return this.execWpCli(`media image-size --allow-root`);
+    }
     return this.execWpCli(`media ${subCommand} ${args}`);
   }
 
@@ -84,5 +116,121 @@ export class WpCliService {
 
   async wpRole(subCommand: string, args: string): Promise<string> {
     return this.execWpCli(`role ${subCommand} ${args}`);
+  }
+
+  async wpPost(subCommand: string, args: string): Promise<string> {
+    return this.execWpCli(`post ${subCommand} ${args}`);
+  }
+  async wpAdmin(): Promise<string> {
+    return this.execWpCli('admin');
+  }
+
+  async wpCli(subCommand: string): Promise<string> {
+    return this.execWpCli(`cli ${subCommand}`);
+  }
+
+  async wpComment(subCommand: string, args: string): Promise<string> {
+    return this.execWpCli(`comment ${subCommand} ${args}`);
+  }
+
+  async wpConfig(subCommand: string, args: string): Promise<string> {
+    return this.execWpCli(`config ${subCommand} ${args}`);
+  }
+
+  async wpCore(subCommand: string, args: string): Promise<string> {
+    return this.execWpCli(`core ${subCommand} ${args}`);
+  }
+
+  async wpCron(subCommand: string, args: string): Promise<string> {
+    return this.execWpCli(`cron ${subCommand} ${args}`);
+  }
+
+  async wpDb(subCommand: string, args: string): Promise<string> {
+    return this.execWpCli(`db ${subCommand} ${args}`);
+  }
+
+  async wpDistArchive(args: string): Promise<string> {
+    return this.execWpCli(`dist-archive ${args}`);
+  }
+
+  async wpEmbed(subCommand: string, args: string): Promise<string> {
+    return this.execWpCli(`embed ${subCommand} ${args}`);
+  }
+
+  async wpEval(code: string): Promise<string> {
+    return this.execWpCli(`eval "${code}"`);
+  }
+
+  async wpEvalFile(filePath: string): Promise<string> {
+    return this.execWpCli(`eval-file "${filePath}"`);
+  }
+
+  async wpFind(): Promise<string> {
+    return this.execWpCli('find');
+  }
+
+  async wpHelp(command?: string): Promise<string> {
+    const helpCommand = command ? `help ${command}` : 'help';
+    return this.execWpCli(helpCommand);
+  }
+
+  async wpI18n(subCommand: string, args: string): Promise<string> {
+    return this.execWpCli(`i18n ${subCommand} ${args}`);
+  }
+
+  async wpMenu(subCommand: string, args: string): Promise<string> {
+    return this.execWpCli(`menu ${subCommand} ${args}`);
+  }
+
+  async wpNetwork(subCommand: string, args: string): Promise<string> {
+    return this.execWpCli(`network ${subCommand} ${args}`);
+  }
+
+  async wpPostType(subCommand: string, args: string): Promise<string> {
+    return this.execWpCli(`post-type ${subCommand} ${args}`);
+  }
+
+  async wpRewrite(subCommand: string, args: string): Promise<string> {
+    return this.execWpCli(`rewrite ${subCommand} ${args}`);
+  }
+
+  async wpScaffold(subCommand: string, args: string): Promise<string> {
+    return this.execWpCli(`scaffold ${subCommand} ${args}`);
+  }
+
+  async wpServer(args: string): Promise<string> {
+    return this.execWpCli(`server ${args}`);
+  }
+
+  async wpShell(): Promise<string> {
+    return this.execWpCli('shell');
+  }
+
+  async wpSidebar(): Promise<string> {
+    return this.execWpCli('sidebar');
+  }
+
+  async wpSite(subCommand: string, args: string): Promise<string> {
+    return this.execWpCli(`site ${subCommand} ${args}`);
+  }
+
+  async wpSuperAdmin(subCommand: string, args: string): Promise<string> {
+    return this.execWpCli(`super-admin ${subCommand} ${args}`);
+  }
+
+  async wpTaxonomy(subCommand: string, args: string): Promise<string> {
+    return this.execWpCli(`taxonomy ${subCommand} ${args}`);
+  }
+
+  async wpTerm(subCommand: string, args: string): Promise<string> {
+    return this.execWpCli(`term ${subCommand} ${args}`);
+  }
+
+  async wpTransient(subCommand: string, args: string): Promise<string> {
+    return this.execWpCli(`transient ${subCommand} ${args}`);
+  }
+
+  async wpWidget(subCommand: string, args: string): Promise<string> {
+    return this.execWpCli(`widget ${subCommand} ${args}`);
   }
 }

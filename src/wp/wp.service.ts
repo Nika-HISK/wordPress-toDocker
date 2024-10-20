@@ -79,7 +79,9 @@ volumes:
       await execAsync(
         `docker exec ${wordpressContainerName} apt-get install -y curl`,
       );
-
+      await execAsync(
+        `docker exec ${wordpressContainerName} apt-get install -y less`,
+      );
       // Downloading and setting up WP-CLI inside the container
       await execAsync(
         `docker exec ${wordpressContainerName} curl -O https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar`,
