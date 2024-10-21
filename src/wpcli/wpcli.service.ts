@@ -29,15 +29,20 @@ export class WpCliService {
     }
   }
 
+
+  async wpCacheAdd(key: string, data: string, group: string): Promise<string> {
+    return this.execWpCli(`cache add ${key} "${data}" ${group}`);
+  }
+
   async installPackage(packageName: string): Promise<string> {
     return this.execWpCli(`package install ${packageName} --allow-root`);
   }
 
-  async wpCap(subCommand: string, args: string): Promise<string> {
-    return this.execWpCli(`cap ${subCommand} ${args}`);
+  async wpCap(subCommand: string, args: string): Promise<string> { //ar mushaobs
+    return this.execWpCli(`cap ${subCommand} "${args}"`);
   }
 
-  async wpCache(subCommand: string, args: string): Promise<string> {
+  async wpCache(subCommand: string, args: string): Promise<string> { 
     return this.execWpCli(`cache ${subCommand} ${args}`);
   }
 
@@ -45,7 +50,7 @@ export class WpCliService {
     dir: string = '/tmp',
     skipComments: boolean = false,
   ): Promise<string> {
-    const skipCommentsFlag = skipComments ? '--skip_comments' : '';
+    const skipCommentsFlag = skipComments ? '--skip_comments' : '';    
     return this.execWpCli(`export --dir=${dir} ${skipCommentsFlag}`.trim());
   }
 

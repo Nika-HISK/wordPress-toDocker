@@ -18,6 +18,16 @@ export class WpCliController {
     return this.wpCliService.wpCap(subCommand, args);
   }
 
+  
+  @Post('cache/add')
+  async wpCacheAdd(
+    @Body('key') key: string,
+    @Body('data') data: string,
+    @Body('group') group: string,
+  ) {
+    return this.wpCliService.wpCacheAdd(key, data, group);
+  }
+
   @Post('cache/:subCommand')
   async wpCache(
     @Param('subCommand') subCommand: string,
