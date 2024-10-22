@@ -1,4 +1,4 @@
-import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
+import { HttpException, HttpStatus, Injectable, InternalServerErrorException } from '@nestjs/common';
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import * as shellEscape from 'shell-escape';
@@ -261,6 +261,25 @@ export class WpCliService {
     }
   }
 
+  async wpDeleteRoles(roleName: string): Promise<string> {
+    // Log the received role name
+    console.log('Received role name:', roleName);
+
+    // Construct the command
+    const command = `role delete ${roleName}`;
+    const execCommand = `docker exec wp-wordpress-1 wp ${command} --allow-root`;
+
+    try {
+        // Execute the command
+        const result = await execAsync(execCommand);
+        console.log('Command executed successfully:', result.stdout);
+        return result.stdout;
+    } catch (error) {
+        // Log and throw a new error if the command fails
+        console.error('Command execution failed:', error.message);
+        throw new InternalServerErrorException(`Failed to delete role: ${error.message}`);
+    }
+}
 
   async wpPost(subCommand: string, args: string): Promise<string> {
     return this.execWpCli(`post ${subCommand} ${args}`);
