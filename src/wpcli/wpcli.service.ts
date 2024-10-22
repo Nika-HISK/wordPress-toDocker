@@ -86,7 +86,7 @@ export class WpCliService {
     try {
       const containerName = await this.getContainerName();
       const { stdout, stderr } = await execAsync(
-        `docker exec ${containerName} wp language core list --status=installed --format=json --allow-root`
+        `docker exec ${containerName} wp language core list --status=installed --format=json --allow-root`,
       );
       if (stderr) {
         console.warn(`WP-CLI stderr: ${stderr}`);
@@ -96,15 +96,15 @@ export class WpCliService {
       throw new Error(`Failed to get installed languages: ${error.message}`);
     }
   }
-
-
-
+  async wpGetMaintenanceStatus(): Promise<string> {
+    return this.execWpCli('maintenance-mode status');
+  }
 
   async wpGetAllLanguages(): Promise<string> {
     try {
       const containerName = await this.getContainerName();
       const { stdout, stderr } = await execAsync(
-        `docker exec ${containerName} wp language core list  --format=json --allow-root`
+        `docker exec ${containerName} wp language core list  --format=json --allow-root`,
       );
       if (stderr) {
         console.warn(`WP-CLI stderr: ${stderr}`);
@@ -114,7 +114,6 @@ export class WpCliService {
       throw new Error(`Failed to get installed languages: ${error.message}`);
     }
   }
-
 
   async wpLanguageInstall(language: string): Promise<string> {
     return this.execWpCli(`language core install ${language}`);
@@ -130,20 +129,20 @@ export class WpCliService {
 
   async wpMaintenance(mode: 'enable' | 'disable'): Promise<string> {
     const containerName = await this.getContainerName();
-  
+
     // Check the current status of maintenance mode
     const { stdout } = await execAsync(
-      `docker exec ${containerName} wp maintenance-mode status --allow-root`
+      `docker exec ${containerName} wp maintenance-mode status --allow-root`,
     );
-  
+
     const isActive = stdout.includes('active');
-  
+
     if (mode === 'enable' && !isActive) {
       return this.execWpCli(`maintenance-mode activate`);
     } else if (mode === 'disable' && isActive) {
       return this.execWpCli(`maintenance-mode deactivate`);
     }
-  
+
     return `Maintenance mode is already ${mode === 'enable' ? 'active' : 'inactive'}.`;
   }
 

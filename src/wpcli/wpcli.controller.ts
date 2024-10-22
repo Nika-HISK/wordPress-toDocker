@@ -62,7 +62,7 @@ export class WpCliController {
     }
   }
 
-  @Get('language/all-installed')
+  @Get('language/all-languages')
   async getAllLanguages() {
     try {
       const installedLanguages = await this.wpCliService.wpGetAllLanguages();
@@ -94,6 +94,22 @@ export class WpCliController {
     @Body('args') args: string,
   ) {
     return this.wpCliService.wpLanguage(subCommand, args);
+  }
+
+  @Get('maintenance/status')
+  async getMaintenanceStatus() {
+    try {
+      const status = await this.wpCliService.wpGetMaintenanceStatus();
+      return {
+        status: 'success',
+        data: status,
+      };
+    } catch (error) {
+      return {
+        status: 'error',
+        message: error.message,
+      };
+    }
   }
 
   @Post('maintenance/:mode')
