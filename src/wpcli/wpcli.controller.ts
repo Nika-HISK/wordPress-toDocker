@@ -46,6 +46,48 @@ export class WpCliController {
     return this.wpCliService.wpSetLanguage(args);
   }
 
+  @Get('language/installed')
+  async getInstalledLanguages() {
+    try {
+      const installedLanguages = await this.wpCliService.wpGetInstalledLanguages();
+      return {
+        status: 'success',
+        data: installedLanguages,
+      };
+    } catch (error) {
+      return {
+        status: 'error',
+        message: error.message,
+      };
+    }
+  }
+
+  @Get('language/all-installed')
+  async getAllLanguages() {
+    try {
+      const installedLanguages = await this.wpCliService.wpGetAllLanguages();
+      return {
+        status: 'success',
+        data: installedLanguages,
+      };
+    } catch (error) {
+      return {
+        status: 'error',
+        message: error.message,
+      };
+    }
+  }
+
+  @Post('language/install')
+  async installLanguage(@Body('language') language: string) {
+    return this.wpCliService.wpLanguageInstall(language);
+  }
+
+  @Post('language/uninstall')
+  async uninstallLanguage(@Body('language') language: string) {
+    return this.wpCliService.wpLanguageUninstall(language);
+  }
+
   @Post('language/:subCommand')
   async wpLanguage(
     @Param('subCommand') subCommand: string,
