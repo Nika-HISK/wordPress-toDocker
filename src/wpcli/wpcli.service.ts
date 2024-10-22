@@ -41,15 +41,59 @@ export class WpCliService {
     }
   }
 
+
+  async wpCacheAdd(key: string, data: string, group: string): Promise<string> {
+    return this.execWpCli(`cache add ${key} "${data}" ${group}`);
+  }
+
   async installPackage(packageName: string): Promise<string> {
     return this.execWpCli(`package install ${packageName} --allow-root`);
   }
-
-  async wpCap(subCommand: string, args: string): Promise<string> {
-    return this.execWpCli(`cap ${subCommand} ${args}`);
+  async wpCap(subCommand: string, args: string): Promise<string> { //ar mushaobs
+  return this.execWpCli(`cap ${subCommand} ${args}`);
   }
 
-  async wpCache(subCommand: string, args: string): Promise<string> {
+  async wpCapAdd(role: string, capability: string): Promise<string> {
+    const containerName = await this.getContainerName();
+    const command = `docker exec ${containerName} wp cap add ${role} ${capability} --allow-root`;
+  
+    try {
+      const { stdout, stderr } = await execAsync(command);
+      if (stderr) {
+        console.warn(`WP-CLI stderr: ${stderr}`);
+      }
+      return stdout.trim();
+    } catch (error) {
+      console.error(`Command execution failed: ${error.message}`);
+      throw new Error(`Failed to add capability: ${error.message}`);
+    }
+  }
+
+  async wpGetListCaps(role: string): Promise<string> {
+    try {
+      const containerName = await this.getContainerName();
+      const command = `docker exec ${containerName} wp cap list ${role} --format=json --allow-root`;
+      console.log(`Running command: ${command}`);
+  
+      const { stdout, stderr } = await execAsync(command);
+      
+      if (stderr) {
+        console.warn(`WP-CLI stderr: ${stderr}`);
+      }
+  
+      if (stdout) {
+        console.log(`WP-CLI stdout: ${stdout}`);
+        return stdout.trim();
+      }
+  
+      throw new Error('No output received from WP-CLI command.');
+    } catch (error) {
+      throw new Error(`Failed to get capabilities: ${error.message}`);
+    }
+  }
+
+
+  async wpCache(subCommand: string, args: string): Promise<string> { 
     return this.execWpCli(`cache ${subCommand} ${args}`);
   }
 
@@ -57,7 +101,7 @@ export class WpCliService {
     dir: string = '/tmp',
     skipComments: boolean = false,
   ): Promise<string> {
-    const skipCommentsFlag = skipComments ? '--skip_comments' : '';
+    const skipCommentsFlag = skipComments ? '--skip_comments' : '';    
     return this.execWpCli(`export --dir=${dir} ${skipCommentsFlag}`.trim());
   }
 
@@ -176,6 +220,47 @@ export class WpCliService {
   async wpRole(subCommand: string, args: string): Promise<string> {
     return this.execWpCli(`role ${subCommand} ${args}`);
   }
+
+  async wpRoleCreate(roleName: string, displayName: string): Promise<string> {
+    const containerName = await this.getContainerName();
+    const command = `docker exec ${containerName} wp role create ${roleName} "${displayName}" --allow-root`;
+  
+    try {
+      const { stdout, stderr } = await execAsync(command);
+      if (stderr) {
+        console.warn(`WP-CLI stderr: ${stderr}`);
+      }
+      return stdout.trim();
+    } catch (error) {
+      console.error(`Command execution failed: ${error.message}`);
+      throw new Error(`Failed to create role: ${error.message}`);
+    }
+  }
+
+
+  async wpGetRoles(): Promise<string> {
+    try {
+      const containerName = await this.getContainerName();
+      const command = `docker exec ${containerName} wp role list --format=json --allow-root`;
+      console.log(`Running command: ${command}`);
+  
+      const { stdout, stderr } = await execAsync(command);
+  
+      if (stderr) {
+        console.warn(`WP-CLI stderr: ${stderr}`);
+      }
+  
+      if (stdout) {
+        console.log(`WP-CLI stdout: ${stdout}`);
+        return stdout.trim();
+      }
+  
+      throw new Error('No output received from WP-CLI command.');
+    } catch (error) {
+      throw new Error(`Failed to get roles: ${error.message}`);
+    }
+  }
+
 
   async wpPost(subCommand: string, args: string): Promise<string> {
     return this.execWpCli(`post ${subCommand} ${args}`);
