@@ -57,7 +57,7 @@ export class WpCliController {
   async wpLanguage(
     @Param('subCommand') subCommand: string,
     @Body('args') args: string,
-  ) {
+  ) { 
     return this.wpCliService.wpLanguage(subCommand, args);
   }
 
