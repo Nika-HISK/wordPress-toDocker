@@ -21,6 +21,10 @@ export class WpCliController {
     return this.wpCliService.wpCapAdd(role, capability);
   }
 
+  @Post('cap')
+  async wpGetListCaps(@Body('role') role: string) {
+    return this.wpCliService.wpGetListCaps(role);
+  }
 
   @Post('cap/:subCommand')
   async wpCap(
@@ -28,11 +32,6 @@ export class WpCliController {
     @Body('args') args: string,
   ) {
     return this.wpCliService.wpCap(subCommand, args);
-  }
-
-  @Get('cap-all')
-  async wpGetListCaps(@Body('role') role: string) {
-    return this.wpCliService.wpGetListCaps(role);
   }
 
 
