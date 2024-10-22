@@ -1,13 +1,16 @@
 import { Controller, Post, Param, Body, Get } from '@nestjs/common';
 import { WpCliService } from './wpcli.service';
+import { Throttle } from '@nestjs/throttler';
+import { PackageInstallDto } from './dto/PackageInstall.dto';
 
 @Controller('wp-cli')
 export class WpCliController {
   constructor(private readonly wpCliService: WpCliService) {}
 
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   @Post('package/install')
-  async installPackage(@Body('packageName') packageName: string) {
-    return this.wpCliService.installPackage(packageName);
+  async installPackage(@Body() Body: PackageInstallDto) {
+    return this.wpCliService.installPackage(Body.packageName);
   }
 
   @Post('cap/:subCommand')
@@ -128,6 +131,10 @@ export class WpCliController {
     @Body('args') args: string,
   ) {
     return this.wpCliService.wpPost(subCommand, args);
+  }
+  @Post('option/add')
+  async wpOptionAdd(@Body('args') args: string) {
+    return this.wpCliService.wpOption('add', args);
   }
 
   @Get('option/get/:optionName')

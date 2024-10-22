@@ -1,6 +1,7 @@
-import { Injectable } from '@nestjs/common';
+import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { exec } from 'child_process';
 import { promisify } from 'util';
+import * as shellEscape from 'shell-escape';
 
 const execAsync = promisify(exec);
 
@@ -13,11 +14,19 @@ export class WpCliService {
     return stdout.trim();
   }
 
-  private async execWpCli(command: string): Promise<string> {
+  async execWpCli(command: string): Promise<string> {
+    const blockedCommands = ['eval', 'eval-file'];
+    const subCommand = command.split(' ')[0];
+    if (blockedCommands.includes(subCommand)) {
+      throw new HttpException('Command not allowed', HttpStatus.FORBIDDEN);
+    }
+
     const containerName = await this.getContainerName();
+    const escapedCommand = shellEscape(command.split(' '));
+
     try {
       const { stdout, stderr } = await execAsync(
-        `docker exec ${containerName} wp ${command} --allow-root`,
+        `docker exec ${containerName} wp ${escapedCommand} --allow-root`,
       );
       if (stderr) {
         console.warn(`WP-CLI stderr: ${stderr}`);
