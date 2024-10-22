@@ -10,6 +10,15 @@ export class WpCliController {
     return this.wpCliService.installPackage(packageName);
   }
 
+  @Post('cap-add')
+  async addCapability(
+    @Body('role') role: string,
+    @Body('capability') capability: string,
+  ): Promise<string> {
+    return this.wpCliService.wpCapAdd(role, capability);
+  }
+
+
   @Post('cap/:subCommand')
   async wpCap(
     @Param('subCommand') subCommand: string,
@@ -18,7 +27,17 @@ export class WpCliController {
     return this.wpCliService.wpCap(subCommand, args);
   }
 
-  
+  @Get('cap-all')
+  async wpGetListCaps(@Body('role') role: string) {
+    return this.wpCliService.wpGetListCaps(role);
+  }
+
+
+  @Get('roles')
+  async getRoles(): Promise<string> {
+    return this.wpCliService.wpGetRoles();
+  }
+
   @Post('cache/add')
   async wpCacheAdd(
     @Body('key') key: string,
@@ -107,6 +126,16 @@ export class WpCliController {
   ) {
     return this.wpCliService.wpSearchReplace(oldValue, newValue);
   }
+
+
+  @Post('role/create')
+  async createRole(@Body() body: { roleName: string; displayName: string; }): Promise<string> {
+    const { roleName, displayName} = body;
+    return this.wpCliService.wpRoleCreate(roleName, displayName);
+  }
+
+
+
 
   @Post('theme/:subCommand')
   async wpTheme(
