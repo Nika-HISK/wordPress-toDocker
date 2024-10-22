@@ -1,4 +1,4 @@
-import { Controller, Post, Param, Body, Get } from '@nestjs/common';
+import { Controller, Post, Param, Body, Get, Delete, BadRequestException, HttpException, HttpStatus } from '@nestjs/common';
 import { WpCliService } from './wpcli.service';
 import { Throttle } from '@nestjs/throttler';
 import { PackageInstallDto } from './dto/PackageInstall.dto';
@@ -21,6 +21,10 @@ export class WpCliController {
     return this.wpCliService.wpCapAdd(role, capability);
   }
 
+  @Post('cap')
+  async wpGetListCaps(@Body('role') role: string) {
+    return this.wpCliService.wpGetListCaps(role);
+  }
 
   @Post('cap/:subCommand')
   async wpCap(
@@ -30,10 +34,6 @@ export class WpCliController {
     return this.wpCliService.wpCap(subCommand, args);
   }
 
-  @Get('cap-all')
-  async wpGetListCaps(@Body('role') role: string) {
-    return this.wpCliService.wpGetListCaps(role);
-  }
 
 
   @Get('roles')
@@ -195,8 +195,26 @@ export class WpCliController {
     return this.wpCliService.wpRoleCreate(roleName, displayName);
   }
 
+  @Post('roles/delete')
+  async wpDeleteRoles(@Body('roleName') roleName: string) {
+      console.log('Received role name:', roleName); // Log the received role name for debugging
 
+      if (!roleName) {
+          throw new HttpException('Role name must be provided', HttpStatus.BAD_REQUEST);
+      }
 
+      try {
+          // Call the service method to delete the role
+          const result = await this.wpCliService.wpDeleteRoles(roleName);
+          return {
+              message: 'Role deleted successfully',
+              result: result
+          };
+      } catch (error) {
+          // If an error occurs, throw a new HttpException with the appropriate status code and message
+          throw new HttpException(error.message, HttpStatus.INTERNAL_SERVER_ERROR);
+      }
+  }
 
   @Post('theme/:subCommand')
   async wpTheme(
@@ -431,4 +449,5 @@ export class WpCliController {
   ) {
     return this.wpCliService.wpWidget(subCommand, args);
   }
+
 }
