@@ -456,12 +456,15 @@ export class WpCliController {
 
   
   @Post('export')
-  async exportContent(@Body('path') path: string) {
-    if (!path) {
-      throw new BadRequestException('Output file path is required');
-    }
-
-    return await this.wpCliService.wpExports(path); // Ensure this method is implemented properly in WpCliService
+  async export(@Body() body: { path: string; exportFileName: string }): Promise<string> {
+      const { path, exportFileName } = body;
+  
+      // Check if exportFileName is defined
+      if (!exportFileName) {
+          throw new Error("exportFileName is required");
+      }
+  
+      return this.wpCliService.wpExports(path, exportFileName);
   }
 
 }
