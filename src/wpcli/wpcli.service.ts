@@ -141,7 +141,32 @@ export class WpCliService {
       throw new Error(`Failed to export WordPress content: ${error.message}`);
     }
   }
-  
+
+  async wpImport(args: string): Promise<string> {
+    const containerName = await this.getContainerName();
+
+    const checkPluginCommand = `docker exec ${containerName} wp plugin is-installed wordpress-importer --allow-root`;
+    
+    try {
+        await execAsync(checkPluginCommand);
+    } catch (error) {
+        console.log('WordPress Importer not installed, installing now...');
+        const installCommand = `docker exec ${containerName} wp plugin install wordpress-importer --activate --allow-root`;
+        await execAsync(installCommand);
+    }
+
+    const importCommand = `docker exec ${containerName} wp import ${args} --allow-root`;
+    try {
+        const { stdout, stderr } = await execAsync(importCommand);
+        if (stderr) {
+            console.warn(`WP-CLI stderr: ${stderr}`);
+        }
+        return stdout.trim();
+    } catch (error) {
+        console.error(`Command failed: ${importCommand}`);
+        throw new Error(`Failed to import: ${error.message}`);
+    }
+}
 
   async copyFileToContainer(filePath: string): Promise<string> {
     const containerName = await this.getContainerName();
@@ -154,10 +179,6 @@ export class WpCliService {
     } catch (error) {
       throw new Error(`Failed to copy file: ${error.message}`);
     }
-  }
-
-  async wpImport(args: string): Promise<string> {
-    return this.execWpCli(`import ${args}`);
   }
 
   async wpLanguage(subCommand: string, args: string): Promise<string> {
