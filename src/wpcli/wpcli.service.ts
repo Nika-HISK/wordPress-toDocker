@@ -247,6 +247,25 @@ export class WpCliService {
     return this.execWpCli(`theme ${subCommand} ${args}`);
   }
 
+  async wpUserOnlyRoles(field: string, args: string): Promise<string> {
+
+    const containerName = await this.getContainerName();
+    const command = `docker exec ${containerName} wp user list ${field} "${args}" --allow-root`;
+  
+    try {
+      const { stdout, stderr } = await execAsync(command);
+      if (stderr) {
+        console.warn(`WP-CLI stderr: ${stderr}`);
+      }
+      return stdout.trim();
+    } catch (error) {
+      console.error(`Command execution failed: ${error.message}`);
+      throw new Error(`Failed to create role: ${error.message}`);
+    }
+  
+  }
+
+
   async wpUser(subCommand: string, args: string): Promise<string> {
     return this.execWpCli(`user ${subCommand} ${args}`);
   }

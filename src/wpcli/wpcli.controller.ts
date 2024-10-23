@@ -219,6 +219,14 @@ export class WpCliController {
     return this.wpCliService.wpTheme(subCommand, args);
   }
 
+  @Post('user/filtered')
+  async wpUserOnlyRoles(
+    @Body('field') field: string,
+    @Body('args') args: string,
+  ) {
+    return this.wpCliService.wpUserOnlyRoles(field, args);
+  }
+
   @Post('user/:subCommand')
   async wpUser(
     @Param('subCommand') subCommand: string,
