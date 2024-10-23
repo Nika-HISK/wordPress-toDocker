@@ -1,4 +1,9 @@
-import { HttpException, HttpStatus, Injectable, InternalServerErrorException } from '@nestjs/common';
+import {
+  HttpException,
+  HttpStatus,
+  Injectable,
+  InternalServerErrorException,
+} from '@nestjs/common';
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import * as shellEscape from 'shell-escape';
@@ -41,7 +46,6 @@ export class WpCliService {
     }
   }
 
-
   async wpCacheAdd(key: string, data: string, group: string): Promise<string> {
     return this.execWpCli(`cache add ${key} "${data}" ${group}`);
   }
@@ -49,14 +53,15 @@ export class WpCliService {
   async installPackage(packageName: string): Promise<string> {
     return this.execWpCli(`package install ${packageName} --allow-root`);
   }
-  async wpCap(subCommand: string, args: string): Promise<string> { //ar mushaobs
-  return this.execWpCli(`cap ${subCommand} ${args}`);
+  async wpCap(subCommand: string, args: string): Promise<string> {
+    //ar mushaobs
+    return this.execWpCli(`cap ${subCommand} ${args}`);
   }
 
   async wpCapAdd(role: string, capability: string): Promise<string> {
     const containerName = await this.getContainerName();
     const command = `docker exec ${containerName} wp cap add ${role} ${capability} --allow-root`;
-  
+
     try {
       const { stdout, stderr } = await execAsync(command);
       if (stderr) {
@@ -74,95 +79,153 @@ export class WpCliService {
       const containerName = await this.getContainerName();
       const command = `docker exec ${containerName} wp cap list ${role} --format=json --allow-root`;
       console.log(`Running command: ${command}`);
-  
+
       const { stdout, stderr } = await execAsync(command);
-      
+
       if (stderr) {
         console.warn(`WP-CLI stderr: ${stderr}`);
       }
-  
+
       if (stdout) {
         console.log(`WP-CLI stdout: ${stdout}`);
         return stdout.trim();
       }
-  
+
       throw new Error('No output received from WP-CLI command.');
     } catch (error) {
       throw new Error(`Failed to get capabilities: ${error.message}`);
     }
   }
 
-
-  async wpCapDelete(roleName:string,cap: string): Promise<string> {
-
+  async wpCapDelete(roleName: string, cap: string): Promise<string> {
     console.log('Received role name and capibility:', roleName, cap);
 
-    const containerName = await this.getContainerName()
+    const containerName = await this.getContainerName();
     const command = `cap remove ${roleName} ${cap}`;
     const escapedCommand = shellEscape(command.split(' '));
     const execCommand = `docker exec ${containerName} wp ${escapedCommand} --allow-root`;
 
     try {
-        const result = await execAsync(execCommand);
-        console.log('Command executed successfully:', result.stdout);
-        return result.stdout;
+      const result = await execAsync(execCommand);
+      console.log('Command executed successfully:', result.stdout);
+      return result.stdout;
     } catch (error) {
-        console.error('Command execution failed:', error.message);
-        throw new InternalServerErrorException(`Failed to delete role: ${error.message}`);
+      console.error('Command execution failed:', error.message);
+      throw new InternalServerErrorException(
+        `Failed to delete role: ${error.message}`,
+      );
     }
-}
+  }
 
-
-  async wpCache(subCommand: string, args: string): Promise<string> { 
+  async wpCache(subCommand: string, args: string): Promise<string> {
     return this.execWpCli(`cache ${subCommand} ${args}`);
   }
 
   async wpExports(path: string): Promise<string> {
     const wpUser = 'www-data'; // User that the WordPress installation runs as
     const exportFilePath = '/tmp/beqauri.wordpress.2024-10-23.000.xml';
-    
+
     // Export command without the --output parameter, but with output redirection
     const exportCommand = `docker exec -u ${wpUser} wp-wordpress-1 wp export > ${exportFilePath}`;
     const cpCommand = `docker cp wp-wordpress-1:${exportFilePath} ${path}`;
-  
+
     try {
       // Execute the export command
       await execAsync(exportCommand);
-      
+
       // Then copy the file to the host
       await execAsync(cpCommand);
-      
+
       return `Export completed at ${path}`;
     } catch (error) {
       throw new Error(`Failed to export WordPress content: ${error.message}`);
     }
   }
 
+  async wpUserGenerate(count: number): Promise<string> {
+    const containerName = await this.getContainerName();
+    const command = `user generate --count=${count} --allow-root`;
+    const escapedContainerName = shellEscape([containerName]);
+
+    const execCommand = `docker exec ${escapedContainerName} wp ${command}`;
+
+    try {
+      const result = await execAsync(execCommand);
+      console.log('Command executed successfully:', result.stdout);
+      return result.stdout;
+    } catch (error) {
+      console.error('Command execution failed:', error.message);
+      throw new InternalServerErrorException(
+        `Failed to generate user: ${error.message}`,
+      );
+    }
+  }
+
+  async wpUserSorted(args: string): Promise<string> {
+    const containerName = await this.getContainerName();
+    const command = `user list ${args} --order=ASC --orderby=ID --fields=ID,user_login,user_email,display_name,user_registered,roles --allow-root`;
+    const escapedContainerName = shellEscape([containerName]);
+
+    const execCommand = `docker exec ${escapedContainerName} wp ${command}`;
+
+    try {
+      const result = await execAsync(execCommand);
+      console.log('Command executed successfully:', result.stdout);
+      return result.stdout;
+    } catch (error) {
+      console.error('Command execution failed:', error.message);
+      throw new InternalServerErrorException(
+        `Failed to generate user: ${error.message}`,
+      );
+    }
+  }
+
+
+  async wpUserCreate(username: string, email: string, password: string, displayName: string): Promise<string> {
+    const containerName = await this.getContainerName();
+    
+    // Constructing the WP-CLI command
+    const command = `user create ${username} ${email} --user_pass=${password} --display_name="${displayName}" --allow-root`;
+    
+    const execCommand = `docker exec ${containerName} wp ${command}`;
+    
+    try {
+        const result = await execAsync(execCommand);
+        console.log('User created successfully:', result.stdout);
+        return result.stdout;
+    } catch (error) {
+        console.error('Command execution failed:', error.message);
+        throw new InternalServerErrorException(`Failed to create user: ${error.message}`);
+    }
+}
+
+
+
   async wpImport(args: string): Promise<string> {
     const containerName = await this.getContainerName();
 
     const checkPluginCommand = `docker exec ${containerName} wp plugin is-installed wordpress-importer --allow-root`;
-    
+
     try {
-        await execAsync(checkPluginCommand);
+      await execAsync(checkPluginCommand);
     } catch (error) {
-        console.log('WordPress Importer not installed, installing now...');
-        const installCommand = `docker exec ${containerName} wp plugin install wordpress-importer --activate --allow-root`;
-        await execAsync(installCommand);
+      console.log('WordPress Importer not installed, installing now...');
+      const installCommand = `docker exec ${containerName} wp plugin install wordpress-importer --activate --allow-root`;
+      await execAsync(installCommand);
     }
 
     const importCommand = `docker exec ${containerName} wp import ${args} --allow-root`;
     try {
-        const { stdout, stderr } = await execAsync(importCommand);
-        if (stderr) {
-            console.warn(`WP-CLI stderr: ${stderr}`);
-        }
-        return stdout.trim();
+      const { stdout, stderr } = await execAsync(importCommand);
+      if (stderr) {
+        console.warn(`WP-CLI stderr: ${stderr}`);
+      }
+      return stdout.trim();
     } catch (error) {
-        console.error(`Command failed: ${importCommand}`);
-        throw new Error(`Failed to import: ${error.message}`);
+      console.error(`Command failed: ${importCommand}`);
+      throw new Error(`Failed to import: ${error.message}`);
     }
-}
+  }
 
   async copyFileToContainer(filePath: string): Promise<string> {
     const containerName = await this.getContainerName();
@@ -185,7 +248,7 @@ export class WpCliService {
     try {
       const containerName = await this.getContainerName();
       const { stdout, stderr } = await execAsync(
-        `docker exec ${containerName} wp language core list --status=installed --format=json --allow-root`
+        `docker exec ${containerName} wp language core list --status=installed --format=json --allow-root`,
       );
       if (stderr) {
         console.warn(`WP-CLI stderr: ${stderr}`);
@@ -196,16 +259,15 @@ export class WpCliService {
     }
   }
 
-    async wpGetMaintenanceStatus(): Promise<string> {
-      return this.execWpCli('maintenance-mode status');
-    }
-
+  async wpGetMaintenanceStatus(): Promise<string> {
+    return this.execWpCli('maintenance-mode status');
+  }
 
   async wpGetAllLanguages(): Promise<string> {
     try {
       const containerName = await this.getContainerName();
       const { stdout, stderr } = await execAsync(
-        `docker exec ${containerName} wp language core list  --format=json --allow-root`
+        `docker exec ${containerName} wp language core list  --format=json --allow-root`,
       );
       if (stderr) {
         console.warn(`WP-CLI stderr: ${stderr}`);
@@ -215,7 +277,6 @@ export class WpCliService {
       throw new Error(`Failed to get installed languages: ${error.message}`);
     }
   }
-
 
   async wpLanguageInstall(language: string): Promise<string> {
     return this.execWpCli(`language core install ${language}`);
@@ -229,12 +290,9 @@ export class WpCliService {
     return this.execWpCli(`option update WPLANG "${language}"`);
   }
 
-  
-
   async wpMaintenance(mode: 'enable' | 'disable'): Promise<string> {
     const subCommand = mode === 'enable' ? 'activate' : 'deactivate';
     return this.execWpCli(`maintenance-mode ${subCommand}`);
-
   }
 
   async wpMedia(subCommand: string, args: string): Promise<string> {
@@ -269,10 +327,9 @@ export class WpCliService {
   }
 
   async wpUserOnlyRoles(field: string, args: string): Promise<string> {
-
     const containerName = await this.getContainerName();
     const command = `docker exec ${containerName} wp user list ${field} "${args}" --allow-root`;
-  
+
     try {
       const { stdout, stderr } = await execAsync(command);
       if (stderr) {
@@ -283,9 +340,23 @@ export class WpCliService {
       console.error(`Command execution failed: ${error.message}`);
       throw new Error(`Failed to create role: ${error.message}`);
     }
-  
   }
 
+  async wpUserDelete(userName: string): Promise<string> {
+    const containerName = await this.getContainerName();
+    const command = `docker exec ${containerName} wp user delete ${userName} --yes --allow-root`;
+
+    try {
+      const { stdout, stderr } = await execAsync(command);
+      if (stderr) {
+        console.warn(`WP-CLI stderr: ${stderr}`);
+      }
+      return stdout.trim();
+    } catch (error) {
+      console.error(`Command execution failed: ${error.message}`);
+      throw new Error(`Failed to create role: ${error.message}`);
+    }
+  }
 
   async wpUser(subCommand: string, args: string): Promise<string> {
     return this.execWpCli(`user ${subCommand} ${args}`);
@@ -298,7 +369,7 @@ export class WpCliService {
   async wpRoleCreate(roleName: string, displayName: string): Promise<string> {
     const containerName = await this.getContainerName();
     const command = `docker exec ${containerName} wp role create ${roleName} "${displayName}" --allow-root`;
-  
+
     try {
       const { stdout, stderr } = await execAsync(command);
       if (stderr) {
@@ -311,24 +382,23 @@ export class WpCliService {
     }
   }
 
-
   async wpGetRoles(): Promise<string> {
     try {
       const containerName = await this.getContainerName();
       const command = `docker exec ${containerName} wp role list --format=json --allow-root`;
       console.log(`Running command: ${command}`);
-  
+
       const { stdout, stderr } = await execAsync(command);
-  
+
       if (stderr) {
         console.warn(`WP-CLI stderr: ${stderr}`);
       }
-  
+
       if (stdout) {
         console.log(`WP-CLI stdout: ${stdout}`);
         return stdout.trim();
       }
-  
+
       throw new Error('No output received from WP-CLI command.');
     } catch (error) {
       throw new Error(`Failed to get roles: ${error.message}`);
@@ -344,16 +414,18 @@ export class WpCliService {
     const execCommand = `docker exec wp-wordpress-1 wp ${command} --allow-root`;
 
     try {
-        // Execute the command
-        const result = await execAsync(execCommand);
-        console.log('Command executed successfully:', result.stdout);
-        return result.stdout;
+      // Execute the command
+      const result = await execAsync(execCommand);
+      console.log('Command executed successfully:', result.stdout);
+      return result.stdout;
     } catch (error) {
-        // Log and throw a new error if the command fails
-        console.error('Command execution failed:', error.message);
-        throw new InternalServerErrorException(`Failed to delete role: ${error.message}`);
+      // Log and throw a new error if the command fails
+      console.error('Command execution failed:', error.message);
+      throw new InternalServerErrorException(
+        `Failed to delete role: ${error.message}`,
+      );
     }
-}
+  }
 
   async wpPost(subCommand: string, args: string): Promise<string> {
     return this.execWpCli(`post ${subCommand} ${args}`);

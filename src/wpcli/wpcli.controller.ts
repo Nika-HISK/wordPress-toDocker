@@ -1,4 +1,16 @@
-import { Controller, Post, Param, Body, Get, Delete, BadRequestException, HttpException, HttpStatus, Query, Res } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Param,
+  Body,
+  Get,
+  Delete,
+  BadRequestException,
+  HttpException,
+  HttpStatus,
+  Query,
+  Res,
+} from '@nestjs/common';
 import { WpCliService } from './wpcli.service';
 import { Throttle } from '@nestjs/throttler';
 import { PackageInstallDto } from './dto/PackageInstall.dto';
@@ -27,8 +39,11 @@ export class WpCliController {
   }
 
   @Post('cap/delete')
-  async wpCapDelete(@Body('roleName') roleName: string, @Body('cap') cap: string) {
-      return this.wpCliService.wpCapDelete(roleName, cap)
+  async wpCapDelete(
+    @Body('roleName') roleName: string,
+    @Body('cap') cap: string,
+  ) {
+    return this.wpCliService.wpCapDelete(roleName, cap);
   }
 
   @Post('cap/:subCommand')
@@ -61,7 +76,6 @@ export class WpCliController {
     return this.wpCliService.wpCache(subCommand, args);
   }
 
-  
   @Post('import')
   async wpImport(@Body('args') args: string) {
     return this.wpCliService.wpImport(args);
@@ -75,7 +89,8 @@ export class WpCliController {
   @Get('language/installed')
   async getInstalledLanguages() {
     try {
-      const installedLanguages = await this.wpCliService.wpGetInstalledLanguages();
+      const installedLanguages =
+        await this.wpCliService.wpGetInstalledLanguages();
       return {
         status: 'success',
         data: installedLanguages,
@@ -118,7 +133,7 @@ export class WpCliController {
   async wpLanguage(
     @Param('subCommand') subCommand: string,
     @Body('args') args: string,
-  ) { 
+  ) {
     return this.wpCliService.wpLanguage(subCommand, args);
   }
 
@@ -185,30 +200,34 @@ export class WpCliController {
     return this.wpCliService.wpSearchReplace(oldValue, newValue);
   }
 
-
   @Post('role/create')
-  async createRole(@Body() body: { roleName: string; displayName: string; }): Promise<string> {
-    const { roleName, displayName} = body;
+  async createRole(
+    @Body() body: { roleName: string; displayName: string },
+  ): Promise<string> {
+    const { roleName, displayName } = body;
     return this.wpCliService.wpRoleCreate(roleName, displayName);
   }
 
   @Post('roles/delete')
   async wpDeleteRoles(@Body('roleName') roleName: string) {
-      console.log('Received role name:', roleName); // Log the received role name for debugging
+    console.log('Received role name:', roleName); // Log the received role name for debugging
 
-      if (!roleName) {
-          throw new HttpException('Role name must be provided', HttpStatus.BAD_REQUEST);
-      }
+    if (!roleName) {
+      throw new HttpException(
+        'Role name must be provided',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
 
-      try {
-          const result = await this.wpCliService.wpDeleteRoles(roleName);
-          return {
-              message: 'Role deleted successfully',
-              result: result
-          };
-      } catch (error) {
-          throw new HttpException(error.message, HttpStatus.INTERNAL_SERVER_ERROR);
-      }
+    try {
+      const result = await this.wpCliService.wpDeleteRoles(roleName);
+      return {
+        message: 'Role deleted successfully',
+        result: result,
+      };
+    } catch (error) {
+      throw new HttpException(error.message, HttpStatus.INTERNAL_SERVER_ERROR);
+    }
   }
 
   @Post('theme/:subCommand')
@@ -217,6 +236,31 @@ export class WpCliController {
     @Body('args') args: string,
   ) {
     return this.wpCliService.wpTheme(subCommand, args);
+  }
+
+  @Post('user/create')
+  async createUser(
+    @Body('username') username: string,
+    @Body('email') email: string,
+    @Body('password') password: string,
+    @Body('displayName') displayName: string
+  ): Promise<string> {
+    return this.wpCliService.wpUserCreate(username, email, password, displayName);
+  }
+
+  @Post('user/generate')
+  async wpUserGenerate(@Body('count') count: number) {
+    return this.wpCliService.wpUserGenerate(count);
+  }
+
+  @Post('user/delete')
+  async wpUserDelete(@Body('userName') userName: string) {
+    return this.wpCliService.wpUserDelete(userName);
+  }
+
+  @Post('user/list/sorted')
+  async wpUserSorted(@Body('args') args: string) {
+    return this.wpCliService.wpUserSorted(args);
   }
 
   @Post('user/filtered')
@@ -453,8 +497,6 @@ export class WpCliController {
     return this.wpCliService.wpWidget(subCommand, args);
   }
 
-
-  
   @Post('export')
   async exportContent(@Body('path') path: string) {
     if (!path) {
@@ -463,5 +505,4 @@ export class WpCliController {
 
     return await this.wpCliService.wpExports(path); // Ensure this method is implemented properly in WpCliService
   }
-
 }
