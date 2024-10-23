@@ -97,9 +97,10 @@ export class WpCliService {
 
     console.log('Received role name and capibility:', roleName, cap);
 
+    const containerName = await this.getContainerName()
     const command = `cap remove ${roleName} ${cap}`;
     const escapedCommand = shellEscape(command.split(' '));
-    const execCommand = `docker exec wp-wordpress-1 wp ${escapedCommand} --allow-root`;
+    const execCommand = `docker exec ${containerName} wp ${escapedCommand} --allow-root`;
 
     try {
         const result = await execAsync(execCommand);
