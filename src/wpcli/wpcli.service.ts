@@ -117,13 +117,27 @@ export class WpCliService {
     return this.execWpCli(`cache ${subCommand} ${args}`);
   }
 
-  async wpExport(
-    dir: string = '/tmp',
-    skipComments: boolean = false,
-  ): Promise<string> {
-    const skipCommentsFlag = skipComments ? '--skip_comments' : '';    
-    return this.execWpCli(`export --dir=${dir} ${skipCommentsFlag}`.trim());
+  async wpExports(path: string): Promise<string> {
+    const wpUser = 'www-data'; // User that the WordPress installation runs as
+    const exportFilePath = '/tmp/beqauri.wordpress.2024-10-23.000.xml';
+    
+    // Export command without the --output parameter, but with output redirection
+    const exportCommand = `docker exec -u ${wpUser} wp-wordpress-1 wp export > ${exportFilePath}`;
+    const cpCommand = `docker cp wp-wordpress-1:${exportFilePath} ${path}`;
+  
+    try {
+      // Execute the export command
+      await execAsync(exportCommand);
+      
+      // Then copy the file to the host
+      await execAsync(cpCommand);
+      
+      return `Export completed at ${path}`;
+    } catch (error) {
+      throw new Error(`Failed to export WordPress content: ${error.message}`);
+    }
   }
+  
 
   async copyFileToContainer(filePath: string): Promise<string> {
     const containerName = await this.getContainerName();

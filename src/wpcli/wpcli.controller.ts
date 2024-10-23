@@ -1,4 +1,4 @@
-import { Controller, Post, Param, Body, Get, Delete, BadRequestException, HttpException, HttpStatus } from '@nestjs/common';
+import { Controller, Post, Param, Body, Get, Delete, BadRequestException, HttpException, HttpStatus, Query, Res } from '@nestjs/common';
 import { WpCliService } from './wpcli.service';
 import { Throttle } from '@nestjs/throttler';
 import { PackageInstallDto } from './dto/PackageInstall.dto';
@@ -39,8 +39,6 @@ export class WpCliController {
     return this.wpCliService.wpCap(subCommand, args);
   }
 
-
-
   @Get('roles')
   async getRoles(): Promise<string> {
     return this.wpCliService.wpGetRoles();
@@ -63,13 +61,7 @@ export class WpCliController {
     return this.wpCliService.wpCache(subCommand, args);
   }
 
-  @Post('export')
-  async wpExport(
-    @Body('dir') dir: string,
-    @Body('skipComments') skipComments: boolean,
-  ) {
-    return this.wpCliService.wpExport(dir, skipComments);
-  }
+  
   @Post('import')
   async wpImport(@Body('args') args: string) {
     return this.wpCliService.wpImport(args);
@@ -451,6 +443,17 @@ export class WpCliController {
     @Body('args') args: string,
   ) {
     return this.wpCliService.wpWidget(subCommand, args);
+  }
+
+
+  
+  @Post('export')
+  async exportContent(@Body('path') path: string) {
+    if (!path) {
+      throw new BadRequestException('Output file path is required');
+    }
+
+    return await this.wpCliService.wpExports(path); // Ensure this method is implemented properly in WpCliService
   }
 
 }
