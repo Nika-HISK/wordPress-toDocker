@@ -456,15 +456,10 @@ export class WpCliController {
 
   
   @Post('export')
-  async export(@Body() body: { path: string; exportFileName: string }): Promise<string> {
-      const { path, exportFileName } = body;
+  async export(@Body() body: { path: string; }): Promise<string> {
+      const { path} = body;
   
-      // Check if exportFileName is defined
-      if (!exportFileName) {
-          throw new Error("exportFileName is required");
-      }
-  
-      return this.wpCliService.wpExports(path, exportFileName);
+      return this.wpCliService.wpExports(path);
   }
 
 }
