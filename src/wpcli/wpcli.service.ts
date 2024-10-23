@@ -93,6 +93,34 @@ export class WpCliService {
   }
 
 
+  async wpCapDelete(roleName:string,cap: string): Promise<string> {
+/*
+ Remove 'spectate' capability from 'author' role.
+$ wp cap remove author spectate
+*/
+
+
+    // Log the received role name
+    console.log('Received role name and capibility:', roleName, cap);
+
+    // Construct the command
+    const command = `cap remove ${roleName} ${cap}`;
+    const escapedCommand = shellEscape(command.split(' '));
+    const execCommand = `docker exec wp-wordpress-1 wp ${escapedCommand} --allow-root`;
+
+    try {
+        // Execute the command
+        const result = await execAsync(execCommand);
+        console.log('Command executed successfully:', result.stdout);
+        return result.stdout;
+    } catch (error) {
+        // Log and throw a new error if the command fails
+        console.error('Command execution failed:', error.message);
+        throw new InternalServerErrorException(`Failed to delete role: ${error.message}`);
+    }
+}
+
+
   async wpCache(subCommand: string, args: string): Promise<string> { 
     return this.execWpCli(`cache ${subCommand} ${args}`);
   }

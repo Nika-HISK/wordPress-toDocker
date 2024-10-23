@@ -26,6 +26,11 @@ export class WpCliController {
     return this.wpCliService.wpGetListCaps(role);
   }
 
+  @Post('cap/delete')
+  async wpCapDelete(@Body('roleName') roleName: string, @Body('cap') cap: string) {
+      return this.wpCliService.wpCapDelete(roleName, cap)
+  }
+
   @Post('cap/:subCommand')
   async wpCap(
     @Param('subCommand') subCommand: string,
@@ -204,14 +209,12 @@ export class WpCliController {
       }
 
       try {
-          // Call the service method to delete the role
           const result = await this.wpCliService.wpDeleteRoles(roleName);
           return {
               message: 'Role deleted successfully',
               result: result
           };
       } catch (error) {
-          // If an error occurs, throw a new HttpException with the appropriate status code and message
           throw new HttpException(error.message, HttpStatus.INTERNAL_SERVER_ERROR);
       }
   }
