@@ -356,7 +356,20 @@ export class WpCliService {
   }
 
   async wpSearchReplace(oldValue: string, newValue: string): Promise<string> {
-    return this.execWpCli(`search-replace "${oldValue}" "${newValue}"`);
+    const containerName = await this.getContainerName();
+    const command = `docker exec ${containerName} wp search-replace "${oldValue}" "${newValue}"  --skip-columns=guid --allow-root`
+    await execAsync(command);
+
+    try {   
+      const { stdout, stderr } = await execAsync(command);
+      if (stderr) {
+        console.warn(`WP-CLI stderr: ${stderr}`);
+      }
+      return stdout.trim();
+    } catch (error) {
+      console.error(`Command execution failed: ${error.message}`);
+      throw new Error(`Failed to create role: ${error.message}`);
+    }
   }
 
   async wpTheme(subCommand: string, args: string): Promise<string> {
