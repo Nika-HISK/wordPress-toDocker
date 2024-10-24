@@ -1,6 +1,7 @@
 import { Controller, Post, Param, Body, Get, Delete, BadRequestException, HttpException, HttpStatus, Query, Res } from '@nestjs/common';
 import { WpCliService } from './wpcli.service';
 import { Throttle } from '@nestjs/throttler';
+import { Response } from 'express';
 import { PackageInstallDto } from './dto/PackageInstall.dto';
 
 @Controller('wp-cli')
@@ -448,12 +449,14 @@ export class WpCliController {
 
   
   @Post('export')
-  async exportContent(@Body('path') path: string) {
-    if (!path) {
-      throw new BadRequestException('Output file path is required');
-    }
+  async exportContent() {
 
-    return await this.wpCliService.wpExports(path); // Ensure this method is implemented properly in WpCliService
+
+    return await this.wpCliService.wpExports(); 
+  }
+  @Get('specific-file')
+  async getSpecificFile(@Res() res: Response) {
+      return this.wpCliService.getSpecificFile(res)
   }
 
 }

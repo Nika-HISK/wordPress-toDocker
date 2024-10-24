@@ -1,9 +1,14 @@
-import { HttpException, HttpStatus, Injectable, InternalServerErrorException } from '@nestjs/common';
+import { HttpException, HttpStatus, Injectable, InternalServerErrorException, Res } from '@nestjs/common';
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import * as shellEscape from 'shell-escape';
-
+import * as path from 'path';
+import { promises as fs } from 'fs';
 const execAsync = promisify(exec);
+import { join } from 'path';
+import { Response } from 'express';
+
+
 
 @Injectable()
 export class WpCliService {
@@ -96,21 +101,17 @@ export class WpCliService {
   async wpCapDelete(roleName:string,cap: string): Promise<string> {
 
 
-    // Log the received role name
     console.log('Received role name and capibility:', roleName, cap);
     const container = await this.getContainerName()
-    // Construct the command
     const command = `cap remove ${roleName} ${cap}`;
     const escapedCommand = shellEscape(command.split(' '));
     const execCommand = `docker exec ${container} wp ${escapedCommand} --allow-root`;
 
     try {
-        // Execute the command
         const result = await execAsync(execCommand);
         console.log('Command executed successfully:', result.stdout);
         return result.stdout;
     } catch (error) {
-        // Log and throw a new error if the command fails
         console.error('Command execution failed:', error.message);
         throw new InternalServerErrorException(`Failed to delete role: ${error.message}`);
     }
@@ -121,26 +122,76 @@ export class WpCliService {
     return this.execWpCli(`cache ${subCommand} ${args}`);
   }
 
-  async wpExports(path: string): Promise<string> {
-    const wpUser = 'www-data'; // User that the WordPress installation runs as
-    const exportFilePath = '/tmp/beqauri.wordpress.2024-10-23.000.xml';
-    
-    // Export command without the --output parameter, but with output redirection
-    const exportCommand = `docker exec -u ${wpUser} wp-wordpress-1 wp export > ${exportFilePath}`;
-    const cpCommand = `docker cp wp-wordpress-1:${exportFilePath} ${path}`;
-  
+  async wpExports() {
+    const wpUser = 'www-data';
+    const containerName = await this.getContainerName(); 
+    const siteName = await this.getSiteName(); 
+    const getDate = await this.getDate();
+
+    console.log(containerName, siteName, getDate);
+
+    const exportDir = path.join(__dirname, '..', 'export'); // Adjust this path
+    const exportFilePath = path.join(exportDir, `${siteName}.WordPress.${getDate}.xml`);
+    console.log(exportFilePath);
+
     try {
-      // Execute the export command
-      await execAsync(exportCommand);
-      
-      // Then copy the file to the host
-      await execAsync(cpCommand);
-      
-      return `Export completed at ${path}`;
+        await fs.mkdir(exportDir, { recursive: true });
     } catch (error) {
-      throw new Error(`Failed to export WordPress content: ${error.message}`);
+        console.error(`Failed to create directory: ${error.message}`);
+        throw new InternalServerErrorException('Could not create export directory');
+    }
+
+    const tempFilePath = `/var/www/html/${siteName}.wordpress.${getDate}.xml`;
+
+    const command = `docker exec -u ${wpUser} ${containerName} sh -c "wp export > ${tempFilePath}"`;
+    console.log(`Executing command: ${command}`);
+
+    try {
+        await execAsync(command);
+        console.log(`Exported XML file inside the container to ${tempFilePath}`);
+
+        await execAsync(`docker cp ${containerName}:${tempFilePath} ${exportFilePath}`);
+        console.log(`Copied XML file to ${exportFilePath}`);
+
+        await execAsync(`docker exec -u ${wpUser} ${containerName} rm ${tempFilePath}`);
+    } catch (error) {
+        console.error(`Failed to export: ${error.message}`);
+        throw new InternalServerErrorException('Could not execute WordPress export');
+    }
+}
+
+async getSpecificFile(@Res() res: Response) {
+  const siteName = await this.getSiteName(); 
+  const getDate = await this.getDate(); 
+
+  const exportFilePath = `${siteName}.WordPress.${getDate}.xml`
+
+
+  console.log(exportFilePath);
+  
+  const filePath = join(__dirname, '..', 'export', exportFilePath) 
+  return res.sendFile(filePath);
+}
+
+
+  private async getSiteName(): Promise<string> {
+    try {
+      const siteName = await this.execWpCli('option get blogname');
+      return siteName;
+    } catch (error) {
+      console.error(`Failed to retrieve site name: ${error.message}`);
+      throw new InternalServerErrorException('Could not retrieve site name');
     }
   }
+
+  private getDate(): string {
+    const now = new Date();
+
+    const formattedDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}.000`;
+
+    return formattedDate;
+  }
+
 
   async wpImport(args: string): Promise<string> {
     const containerName = await this.getContainerName();
