@@ -85,6 +85,7 @@ volumes:
       await execAsync(
         `docker exec ${wordpressContainerName} apt-get install -y less`,
       );
+
       // Downloading and setting up WP-CLI inside the container
       await execAsync(
         `docker exec ${wordpressContainerName} curl -O https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar`,
@@ -95,6 +96,7 @@ volumes:
       await execAsync(
         `docker exec ${wordpressContainerName} mv wp-cli.phar /usr/local/bin/wp`,
       );
+
       console.log('WP-CLI installed.');
       await this.sleep(30000);
 
@@ -123,6 +125,10 @@ volumes:
         `docker exec ${wordpressContainerName} wp core install --url="${siteUrl}" --title="${siteTitle}" --admin_user="${wpAdminUser}" --admin_password="${wpAdminPassword}" --admin_email="${wpAdminEmail}" --skip-email --allow-root`,
       );
       console.log('WordPress installed.');
+
+      await execAsync(
+        `docker exec ${wordpressContainerName} wp plugin install wordpress-importer --activate --allow-root`,
+      );
 
       return 'WordPress setup complete!';
     } catch (error) {

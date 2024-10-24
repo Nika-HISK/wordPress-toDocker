@@ -82,8 +82,12 @@ export class WpCliController {
   }
 
   @Post('import')
-  async wpImport(@Body('args') args: string) {
-    return this.wpCliService.wpImport(args);
+  @UseInterceptors(FileInterceptor('file'))
+  async importContent(@UploadedFile() file: Express.Multer.File): Promise<string> {
+      if (!file) {
+          throw new HttpException('No file uploaded', HttpStatus.BAD_REQUEST);
+      }
+      return this.wpCliService.importContent(file);
   }
 
   @Post('language/set')

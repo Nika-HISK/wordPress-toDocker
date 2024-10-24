@@ -277,6 +277,46 @@ export class WpCliService {
     }
   }
 
+
+
+  async importContent(file: Express.Multer.File): Promise<string> {
+    if (!file) {
+        throw new HttpException('No file uploaded', HttpStatus.BAD_REQUEST);
+    }
+
+    const uploadsDir = path.join(__dirname, '../wp/imports');
+    const localFilePath = path.join(uploadsDir, file.originalname);
+    const containerName = await this.getContainerName();
+    const containerFilePath = `/var/www/html/wp-content/uploads/${file.originalname}`;
+
+    try {
+        // Ensure the uploads directory exists
+        await fs.mkdir(uploadsDir, { recursive: true });
+        // Write the uploaded file to the local uploads directory
+        await fs.writeFile(localFilePath, file.buffer);
+
+        if (!containerName) {
+            throw new Error('Container name is undefined');
+        }
+
+        // Copy the file to the Docker container
+        await execAsync(`docker cp "${localFilePath}" "${containerName}:${containerFilePath}"`);
+
+        // Execute the WP CLI command to import the XML file
+        await execAsync(
+            `docker exec ${containerName} wp import "${containerFilePath}" --authors=skip --allow-root `
+        );
+
+        return `Successfully imported content from ${file.originalname}.`;
+    } catch (error) {
+        throw new HttpException(
+            `Failed to import content: ${error.message}`,
+            HttpStatus.INTERNAL_SERVER_ERROR,
+        );
+    }
+}
+
+
   async wpLanguage(subCommand: string, args: string): Promise<string> {
     return this.execWpCli(`language core ${subCommand} ${args}`);
   }
