@@ -10,10 +10,15 @@ import {
   HttpStatus,
   Query,
   Res,
+  UseInterceptors,
+  UploadedFile,
 } from '@nestjs/common';
 import { WpCliService } from './wpcli.service';
 import { Throttle } from '@nestjs/throttler';
 import { PackageInstallDto } from './dto/PackageInstall.dto';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { diskStorage } from 'multer';
+import { join } from 'path';
 
 @Controller('wp-cli')
 export class WpCliController {
@@ -158,9 +163,13 @@ export class WpCliController {
     return this.wpCliService.wpMaintenance(mode);
   }
 
-  @Post('media/upload')
-  async uploadMedia(@Body('filePath') filePath: string) {
-    return this.wpCliService.copyFileToContainer(filePath);
+  @Post('media/import')
+  @UseInterceptors(FileInterceptor('file'))
+  async importMedia(@UploadedFile() file: Express.Multer.File): Promise<string> {
+    if (!file) {
+      throw new HttpException('No file uploaded', HttpStatus.BAD_REQUEST);
+    }
+    return this.wpCliService.importMedia(file);
   }
 
   @Post('media/:subCommand')

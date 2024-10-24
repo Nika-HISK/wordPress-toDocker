@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   HttpException,
   HttpStatus,
   Injectable,
@@ -7,6 +8,8 @@ import {
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import * as shellEscape from 'shell-escape';
+import { promises as fs } from 'fs';
+import * as path from 'path';
 
 const execAsync = promisify(exec);
 
@@ -124,20 +127,18 @@ export class WpCliService {
   async wpExports(path: string): Promise<string> {
     const wpUser = 'www-data'; // User that the WordPress installation runs as
 
-
-    const siteName = await this.getSiteName()
+    const siteName = await this.getSiteName();
 
     console.log(siteName);
-    
-    const date = this.getDate()
+
+    const date = this.getDate();
 
     console.log(date);
-    
 
     const exportFilePath = `/tmp/${siteName}.wordpress.${date}.xml`;
-    
+
     console.log(exportFilePath);
-    
+
     // Export command without the --output parameter, but with output redirection
     const exportCommand = `docker exec -u ${wpUser} wp-wordpress-1 wp export > ${exportFilePath}`;
     const cpCommand = `docker cp wp-wordpress-1:${exportFilePath} ${path}`;
@@ -193,26 +194,30 @@ export class WpCliService {
     }
   }
 
-
-  async wpUserCreate(username: string, email: string, password: string, displayName: string): Promise<string> {
+  async wpUserCreate(
+    username: string,
+    email: string,
+    password: string,
+    displayName: string,
+  ): Promise<string> {
     const containerName = await this.getContainerName();
-    
+
     // Constructing the WP-CLI command
     const command = `user create ${username} ${email} --user_pass=${password} --display_name="${displayName}" --allow-root`;
-    
+
     const execCommand = `docker exec ${containerName} wp ${command}`;
-    
+
     try {
-        const result = await execAsync(execCommand);
-        console.log('User created successfully:', result.stdout);
-        return result.stdout;
+      const result = await execAsync(execCommand);
+      console.log('User created successfully:', result.stdout);
+      return result.stdout;
     } catch (error) {
-        console.error('Command execution failed:', error.message);
-        throw new InternalServerErrorException(`Failed to create user: ${error.message}`);
+      console.error('Command execution failed:', error.message);
+      throw new InternalServerErrorException(
+        `Failed to create user: ${error.message}`,
+      );
     }
-}
-
-
+  }
 
   async wpImport(args: string): Promise<string> {
     const containerName = await this.getContainerName();
@@ -240,16 +245,32 @@ export class WpCliService {
     }
   }
 
-  async copyFileToContainer(filePath: string): Promise<string> {
+  async importMedia(file: Express.Multer.File): Promise<string> {
+    if (!file) {
+      throw new HttpException('No file uploaded', HttpStatus.BAD_REQUEST);
+    }
+    const uploadsDir = path.join(__dirname, '../wp/uploads');
+    const localFilePath = path.join(uploadsDir, file.originalname);
     const containerName = await this.getContainerName();
-    const targetPath = '/tmp/' + filePath.split('\\').pop();
-    const command = `docker cp "${filePath}" ${containerName}:${targetPath}`;
+    const containerFilePath = `/var/www/html/wp-content/uploads/${file.originalname}`;
 
     try {
-      await execAsync(command);
-      return `File copied to ${targetPath}`;
+      // Create uploads directory if it doesn't exist
+      await fs.mkdir(uploadsDir, { recursive: true });
+
+      // Write the file buffer to the temporary location
+      await fs.writeFile(localFilePath, file.buffer);
+
+      // Import the media into WordPress
+      await execAsync(
+        `docker exec ${containerName} wp media import "${containerFilePath}" --allow-root`,
+      );
+      return `Successfully imported ${file.originalname} as attachment.`;
     } catch (error) {
-      throw new Error(`Failed to copy file: ${error.message}`);
+      throw new HttpException(
+        `Failed to import media: ${error.message}`,
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
     }
   }
 
@@ -568,9 +589,9 @@ export class WpCliService {
 
   private getDate(): string {
     const now = new Date();
-    
+
     const formattedDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}.000`;
-    
+
     return formattedDate;
   }
 }

@@ -30,13 +30,12 @@ services:
     image: mysql:8.0
     restart: always
     environment:
-      MYSQL_ROOT_PASSWORD: ${dbPassword}
-      MYSQL_DATABASE: ${dbName}
-      MYSQL_USER: ${dbUser}
-      MYSQL_PASSWORD: ${dbPassword}
+      MYSQL_ROOT_PASSWORD: paroli123
+      MYSQL_DATABASE: ramedb
+      MYSQL_USER: nika_chinchaladze
+      MYSQL_PASSWORD: paroli123
     volumes:
       - db_data:/var/lib/mysql
-    command: --skip-host-cache --skip-name-resolve --innodb-buffer-pool-size=64M
 
   wordpress:
     image: wordpress:latest
@@ -47,9 +46,10 @@ services:
       - "8000:80"
     environment:
       WORDPRESS_DB_HOST: db
-      WORDPRESS_DB_USER: ${dbUser}
-      WORDPRESS_DB_PASSWORD: ${dbPassword}
-
+      WORDPRESS_DB_USER: nika_chinchaladze
+      WORDPRESS_DB_PASSWORD: paroli123
+    volumes:
+      - ./uploads:/var/www/html/wp-content/uploads 
 volumes:
   db_data:
       `;
