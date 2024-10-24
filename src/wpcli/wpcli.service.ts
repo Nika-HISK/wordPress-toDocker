@@ -249,22 +249,25 @@ export class WpCliService {
     if (!file) {
       throw new HttpException('No file uploaded', HttpStatus.BAD_REQUEST);
     }
+
     const uploadsDir = path.join(__dirname, '../wp/uploads');
     const localFilePath = path.join(uploadsDir, file.originalname);
     const containerName = await this.getContainerName();
     const containerFilePath = `/var/www/html/wp-content/uploads/${file.originalname}`;
 
     try {
-      // Create uploads directory if it doesn't exist
       await fs.mkdir(uploadsDir, { recursive: true });
-
-      // Write the file buffer to the temporary location
       await fs.writeFile(localFilePath, file.buffer);
-
-      // Import the media into WordPress
+      if (!containerName) {
+        throw new Error('Container name is undefined');
+      }
+      await execAsync(
+        `docker cp "${localFilePath}" "${containerName}:${containerFilePath}"`,
+      );
       await execAsync(
         `docker exec ${containerName} wp media import "${containerFilePath}" --allow-root`,
       );
+
       return `Successfully imported ${file.originalname} as attachment.`;
     } catch (error) {
       throw new HttpException(

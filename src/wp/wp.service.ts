@@ -49,14 +49,17 @@ services:
       WORDPRESS_DB_USER: nika_chinchaladze
       WORDPRESS_DB_PASSWORD: paroli123
     volumes:
-      - ./uploads:/var/www/html/wp-content/uploads 
+      - wp_uploads:/var/www/html/wp-content/uploads 
+
 volumes:
   db_data:
+  wp_uploads:
+
       `;
 
       const fs = require('fs');
       const path = require('path');
-      const filePath = path.join(__dirname, 'docker-compose.yml'); // Defining the path to save docker-compose.yml
+      const filePath = path.join(__dirname, 'docker-compose.yml');
 
       // Writing the docker-compose.yml file to disk
       await fs.promises.writeFile(filePath, dockerComposeYml.trim());
