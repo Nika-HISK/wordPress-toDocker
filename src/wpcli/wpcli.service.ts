@@ -141,24 +141,30 @@ export class WpCliService {
         throw new InternalServerErrorException('Could not create export directory');
     }
 
-    const tempFilePath = `/var/www/html/${siteName}.wordpress.${getDate}.xml`;
+    const tempFileName = `${siteName}.wordpress.${getDate}.xml`;
+    const tempFilePath = `/var/www/html/${tempFileName}`;
 
-    const command = `docker exec -u ${wpUser} ${containerName} sh -c "wp export > ${tempFilePath}"`;
+    const command = `docker exec -u ${wpUser} ${containerName} sh -c "wp export --filename_format='${tempFileName}' --dir='/var/www/html/'"`;
     console.log(`Executing command: ${command}`);
 
     try {
         await execAsync(command);
         console.log(`Exported XML file inside the container to ${tempFilePath}`);
 
-        await execAsync(`docker cp ${containerName}:${tempFilePath} ${exportFilePath}`);
+        // Use quotes for paths containing spaces
+        await execAsync(`docker cp "${containerName}:${tempFilePath}" "${exportFilePath}"`);
         console.log(`Copied XML file to ${exportFilePath}`);
 
-        await execAsync(`docker exec -u ${wpUser} ${containerName} rm ${tempFilePath}`);
+        // Clean up the temporary file in the container
+        await execAsync(`docker exec -u ${wpUser} ${containerName} rm "${tempFilePath}"`);
     } catch (error) {
         console.error(`Failed to export: ${error.message}`);
         throw new InternalServerErrorException('Could not execute WordPress export');
     }
 }
+
+
+
 
 async getSpecificFile(@Res() res: Response) {
   const siteName = await this.getSiteName(); 
@@ -174,15 +180,21 @@ async getSpecificFile(@Res() res: Response) {
 }
 
 
-  private async getSiteName(): Promise<string> {
-    try {
+private async getSiteName(): Promise<string> {
+  try {
+      // Retrieve the site name using the execWpCli method
       const siteName = await this.execWpCli('option get blogname');
-      return siteName;
-    } catch (error) {
+
+      // Replace spaces with an empty string to create a compact name
+      const formattedSiteName = siteName.replace(/\s+/g, '');
+      
+      return formattedSiteName;
+  } catch (error) {
       console.error(`Failed to retrieve site name: ${error.message}`);
       throw new InternalServerErrorException('Could not retrieve site name');
-    }
   }
+}
+
 
   private getDate(): string {
     const now = new Date();
