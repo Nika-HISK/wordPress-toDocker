@@ -119,64 +119,6 @@ export class WpCliService {
     return this.execWpCli(`cache ${subCommand} ${args}`);
   }
 
-  async wpExports() {
-    const wpUser = 'www-data';
-    const containerName = await this.getContainerName(); 
-    const siteName = await this.getSiteName(); 
-    const getDate = await this.getDate();
-
-    console.log(containerName, siteName, getDate);
-
-    const exportDir = path.join(__dirname, '..', 'export'); // Adjust this path
-    const exportFilePath = path.join(exportDir, `${siteName}.WordPress.${getDate}.xml`);
-    console.log(exportFilePath);
-
-    try {
-        await fs.mkdir(exportDir, { recursive: true });
-    } catch (error) {
-        console.error(`Failed to create directory: ${error.message}`);
-        throw new InternalServerErrorException('Could not create export directory');
-    }
-
-    const tempFileName = `${siteName}.wordpress.${getDate}.xml`;
-    const tempFilePath = `/var/www/html/${tempFileName}`;
-
-    const command = `docker exec -u ${wpUser} ${containerName} sh -c "wp export --filename_format='${tempFileName}' --dir='/var/www/html/'"`;
-    console.log(`Executing command: ${command}`);
-
-    try {
-        await execAsync(command);
-        console.log(`Exported XML file inside the container to ${tempFilePath}`);
-
-        // Use quotes for paths containing spaces
-        await execAsync(`docker cp "${containerName}:${tempFilePath}" "${exportFilePath}"`);
-        console.log(`Copied XML file to ${exportFilePath}`);
-
-        // Clean up the temporary file in the container
-        await execAsync(`docker exec -u ${wpUser} ${containerName} rm "${tempFilePath}"`);
-    } catch (error) {
-        console.error(`Failed to export: ${error.message}`);
-        throw new InternalServerErrorException('Could not execute WordPress export');
-    }
-}
-
-
-
-
-async getSpecificFile(@Res() res: Response) {
-  const siteName = await this.getSiteName(); 
-  const getDate = await this.getDate(); 
-
-  const exportFilePath = `${siteName}.WordPress.${getDate}.xml`
-
-
-  console.log(exportFilePath);
-  
-  const filePath = join(__dirname, '..', 'export', exportFilePath) 
-  return res.sendFile(filePath);
-}
-
-
 private async getSiteName(): Promise<string> {
   try {
       // Retrieve the site name using the execWpCli method
@@ -677,6 +619,57 @@ private async getSiteName(): Promise<string> {
 
   async wpWidget(subCommand: string, args: string): Promise<string> {
     return this.execWpCli(`widget ${subCommand} ${args}`);
+  }
+
+
+  async exportAndReturnFile(@Res() res: Response) {
+    const wpUser = 'www-data';
+    const containerName = await this.getContainerName();
+    const siteName = await this.getSiteName();
+    const getDate = await this.getDate();
+
+    console.log(containerName, siteName, getDate);
+
+    const exportDir = path.join(__dirname, '..', 'export');
+    const exportFileName = `${siteName}.WordPress.${getDate}.xml`;
+    const exportFilePath = path.join(exportDir, exportFileName);
+    const tempFilePath = `/var/www/html/${exportFileName}`;
+
+    console.log(`Export file path: ${exportFilePath}`);
+
+    try {
+      await fs.mkdir(exportDir, { recursive: true });
+    } catch (error) {
+      console.error(`Failed to create directory: ${error.message}`);
+      throw new InternalServerErrorException('Could not create export directory');
+    }
+
+    const command = `docker exec -u ${wpUser} ${containerName} sh -c "wp export --filename_format='${exportFileName}' --dir='/var/www/html/'"`;
+    console.log(`Executing command: ${command}`);
+
+    try {
+      // Execute the export command inside the container
+      await execAsync(command);
+      console.log(`Exported XML file inside container at ${tempFilePath}`);
+
+      // Copy the file from the container to the local filesystem
+      await execAsync(`docker cp "${containerName}:${tempFilePath}" "${exportFilePath}"`);
+      console.log(`Copied XML file to ${exportFilePath}`);
+
+      // Clean up the temporary file in the container
+      await execAsync(`docker exec -u ${wpUser} ${containerName} rm "${tempFilePath}"`);
+    } catch (error) {
+      console.error(`Failed to export: ${error.message}`);
+      throw new InternalServerErrorException('Could not execute WordPress export');
+    }
+
+    // Serve the file directly as a response
+    return res.sendFile(exportFilePath, (err) => {
+      if (err) {
+        console.error(`Failed to send file: ${err.message}`);
+        throw new InternalServerErrorException('Could not send the XML file');
+      }
+    });
   }
 
 }
