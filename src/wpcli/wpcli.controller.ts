@@ -15,6 +15,7 @@ import {
 } from '@nestjs/common';
 import { WpCliService } from './wpcli.service';
 import { Throttle } from '@nestjs/throttler';
+import { Response } from 'express';
 import { PackageInstallDto } from './dto/PackageInstall.dto';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
@@ -511,9 +512,15 @@ export class WpCliController {
   }
 
   @Post('export')
-  async export(@Body() body: { path: string; }): Promise<string> {
-      const { path} = body;
-  
-      return this.wpCliService.wpExports(path);
+  async exportContent() {
+
+
+    return await this.wpCliService.wpExports(); 
   }
+  @Get('specific-file')
+  async getSpecificFile(@Res() res: Response) {
+      return this.wpCliService.getSpecificFile(res)
+  }
+
+  
 }
