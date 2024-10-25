@@ -511,7 +511,7 @@ export class WpCliController {
     return this.wpCliService.wpWidget(subCommand, args);
   }
 
-   @Get('exportAndRunFile')
+   @Get('export')
   async exportAndRunFile(@Res() res: Response) {
     return await this.wpCliService.exportAndReturnFile(res); 
   }
