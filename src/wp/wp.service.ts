@@ -10,6 +10,7 @@ export class WordpressService {
     const {
       dbName,
       dbUser,
+      dbRootPassword,
       dbPassword,
       wpAdminUser,
       wpAdminPassword,
@@ -30,10 +31,10 @@ services:
     image: mysql:8.0
     restart: always
     environment:
-      MYSQL_ROOT_PASSWORD: paroli123
-      MYSQL_DATABASE: ramedb
-      MYSQL_USER: nika_chinchaladze
-      MYSQL_PASSWORD: paroli123
+      MYSQL_ROOT_PASSWORD: ${dbRootPassword}
+      MYSQL_DATABASE: ${dbName}
+      MYSQL_USER: ${dbUser}
+      MYSQL_PASSWORD: ${dbPassword}
     volumes:
       - db_data:/var/lib/mysql
 
@@ -46,8 +47,8 @@ services:
       - "8000:80"
     environment:
       WORDPRESS_DB_HOST: db
-      WORDPRESS_DB_USER: nika_chinchaladze
-      WORDPRESS_DB_PASSWORD: paroli123
+      WORDPRESS_DB_USER: ${dbUser}
+      WORDPRESS_DB_PASSWORD: ${dbPassword}
     volumes:
       - wp_uploads:/var/www/html/wp-content/uploads 
 
