@@ -1,12 +1,15 @@
 import { Injectable } from '@nestjs/common';
 import { exec } from 'child_process';
 import { promisify } from 'util';
+import * as fs from 'fs';
+import * as path from 'path';
+
 const execAsync = promisify(exec);
 
 @Injectable()
 export class WordpressService {
-  // Main function to set up WordPress based on user-provided configuration
-  async setupWordpress(config: any): Promise<string> {
+  // Function to set up WordPress based on user-provided configuration
+  async setupWordpress(config: any, instanceId: number): Promise<string> {
     const {
       dbName,
       dbUser,
@@ -20,14 +23,14 @@ export class WordpressService {
     } = config;
 
     try {
-      console.log('Starting WordPress setup process...');
+      console.log(`Starting WordPress setup for instance ${instanceId}...`);
 
-      // Docker Compose configuration to set up WordPress and MySQL containers
+      // Docker Compose configuration to set up WordPress and MySQL containers with unique names
       const dockerComposeYml = `
 version: '3.8'
 
 services:
-  db:
+  db${instanceId}:
     image: mysql:8.0
     restart: always
     environment:
@@ -36,58 +39,67 @@ services:
       MYSQL_USER: ${dbUser}
       MYSQL_PASSWORD: ${dbPassword}
     volumes:
-      - db_data:/var/lib/mysql
+      - db_data_${instanceId}:/var/lib/mysql
 
-  wordpress:
+  wordpress${instanceId}:
     image: wordpress:latest
     restart: always
     depends_on:
-      - db
+      - db${instanceId}
     ports:
-      - "8000:80"
+      - "${8000 + instanceId}:80"  # Increment port for each instance
     environment:
-      WORDPRESS_DB_HOST: db
+      WORDPRESS_DB_HOST: db${instanceId}
       WORDPRESS_DB_USER: ${dbUser}
       WORDPRESS_DB_PASSWORD: ${dbPassword}
     volumes:
-      - wp_uploads:/var/www/html/wp-content/uploads 
+      - wp_uploads_${instanceId}:/var/www/html/wp-content/uploads 
 
 volumes:
-  db_data:
-  wp_uploads:
-
+  db_data_${instanceId}:
+  wp_uploads_${instanceId}:
       `;
 
-      const fs = require('fs');
-      const path = require('path');
-      const filePath = path.join(__dirname, 'docker-compose.yml');
+      // Directory for instance-specific Docker setup
+      const instanceDir = path.join(
+        __dirname,
+        `wordpress_instance_${instanceId}`,
+      );
+      await fs.promises.mkdir(instanceDir, { recursive: true });
+      const filePath = path.join(instanceDir, 'docker-compose.yml');
 
       // Writing the docker-compose.yml file to disk
       await fs.promises.writeFile(filePath, dockerComposeYml.trim());
-      console.log('docker-compose.yml file created.');
-
-      // Running docker-compose to start the services
-      await execAsync('docker-compose up -d', { cwd: __dirname });
-      console.log('Docker services started.');
-
-      // Retrieving the name of the running WordPress container
-      console.log('Retrieving WordPress container name...');
-      const { stdout } = await execAsync(
-        'docker ps --filter "ancestor=wordpress" --format "{{.Names}}"',
+      console.log(
+        `docker-compose.yml file created for instance ${instanceId}.`,
       );
-      const wordpressContainerName = stdout.trim(); // Store the container name
-      console.log(`WordPress container name: ${wordpressContainerName}`);
 
-      // Updating and installing necessary tools inside the container
+      // Running docker-compose to start services for this instance
+      await execAsync('docker-compose up -d', { cwd: instanceDir });
+      console.log(`Docker services started for instance ${instanceId}.`);
+
+      // Retrieve the WordPress container name without `grep`
+      const { stdout } = await execAsync(
+        `docker ps --filter "ancestor=wordpress" --format "{{.Names}}"`,
+      );
+      const wordpressContainerName = stdout
+        .split('\n')
+        .find((name) => name.includes(`wordpress${instanceId}`))
+        .trim();
+
+      if (!wordpressContainerName) {
+        throw new Error(`Failed to find container for instance ${instanceId}`);
+      }
+
+      console.log(
+        `WordPress container name for instance ${instanceId}: ${wordpressContainerName}`,
+      );
+
+      // Install WP-CLI and necessary tools
       await execAsync(`docker exec ${wordpressContainerName} apt-get update`);
       await execAsync(
         `docker exec ${wordpressContainerName} apt-get install -y curl`,
       );
-      await execAsync(
-        `docker exec ${wordpressContainerName} apt-get install -y less`,
-      );
-
-      // Downloading and setting up WP-CLI inside the container
       await execAsync(
         `docker exec ${wordpressContainerName} curl -O https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar`,
       );
@@ -97,8 +109,7 @@ volumes:
       await execAsync(
         `docker exec ${wordpressContainerName} mv wp-cli.phar /usr/local/bin/wp`,
       );
-
-      console.log('WP-CLI installed.');
+      console.log(`WP-CLI installed in instance ${instanceId}.`);
       await this.sleep(30000);
 
       // Check if wp-config.php exists, and if so, remove it
@@ -114,30 +125,31 @@ volumes:
       } catch (error) {
         console.log('wp-config.php does not exist. No need to remove.');
       }
-
-      // Creating a new wp-config.php file using WP-CLI
+      // Creating wp-config.php and installing WordPress
       await execAsync(
-        `docker exec ${wordpressContainerName} wp config create --dbname=${dbName} --dbuser=${dbUser} --dbpass=${dbPassword} --dbhost=db --path=/var/www/html --allow-root`,
+        `docker exec ${wordpressContainerName} wp config create --dbname=${dbName} --dbuser=${dbUser} --dbpass=${dbPassword} --dbhost=db${instanceId} --path=/var/www/html --allow-root`,
       );
-      console.log('wp-config.php created.');
+      console.log(`wp-config.php created for instance ${instanceId}.`);
 
-      // Installing WordPress using WP-CLI
       await execAsync(
         `docker exec ${wordpressContainerName} wp core install --url="${siteUrl}" --title="${siteTitle}" --admin_user="${wpAdminUser}" --admin_password="${wpAdminPassword}" --admin_email="${wpAdminEmail}" --skip-email --allow-root`,
       );
-      console.log('WordPress installed.');
+      console.log(`WordPress installed for instance ${instanceId}.`);
 
+      // Activate necessary plugins
       await execAsync(
         `docker exec ${wordpressContainerName} wp plugin install wordpress-importer --activate --allow-root`,
       );
 
-      return 'WordPress setup complete!';
+      return `WordPress setup complete for instance ${instanceId}!`;
     } catch (error) {
-      console.error('Error during WordPress setup:', error);
-      throw new Error('WordPress setup failed');
+      console.error(
+        `Error during WordPress setup for instance ${instanceId}:`,
+        error,
+      );
+      throw new Error(`WordPress setup failed for instance ${instanceId}`);
     }
   }
-
   // Helper function to introduce delays
   private sleep(ms: number): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, ms));

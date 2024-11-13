@@ -10,7 +10,8 @@ export class WordpressController {
   @Post('setup')
   async setupWordpress(@Body() body: any, @Res() res: Response) {
     try {
-      const message = await this.wordpressService.setupWordpress(body);
+      const instanceId = 4
+      const message = await this.wordpressService.setupWordpress(body,instanceId);
       return res.status(HttpStatus.OK).json({ message });
     } catch (error) {
       return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
