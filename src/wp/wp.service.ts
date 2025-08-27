@@ -59,16 +59,15 @@ volumes:
       await fs.promises.writeFile(filePath, dockerComposeYml.trim());
       console.log('docker-compose.yml file created.');
 
-      // Running docker-compose to start the services
       await execAsync('docker-compose up -d', { cwd: __dirname });
       console.log('Docker services started.');
 
-      // Retrieving the name of the running WordPress container
+  
       console.log('Retrieving WordPress container name...');
       const { stdout } = await execAsync(
         'docker ps --filter "ancestor=wordpress" --format "{{.Names}}"',
       );
-      const wordpressContainerName = stdout.trim(); // Store the container name
+      const wordpressContainerName = stdout.trim();
       console.log(`WordPress container name: ${wordpressContainerName}`);
 
       // Updating and installing necessary tools inside the container
