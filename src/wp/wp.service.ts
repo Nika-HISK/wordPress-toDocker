@@ -5,7 +5,6 @@ const execAsync = promisify(exec);
 
 @Injectable()
 export class WordpressService {
-  // Main function to set up WordPress based on user-provided configuration
   async setupWordpress(config: any): Promise<string> {
     const {
       dbName,
@@ -21,7 +20,6 @@ export class WordpressService {
     try {
       console.log('Starting WordPress setup process...');
 
-      // Docker Compose configuration to set up WordPress and MySQL containers
       const dockerComposeYml = `
 version: '3.8'
 
@@ -56,9 +54,8 @@ volumes:
 
       const fs = require('fs');
       const path = require('path');
-      const filePath = path.join(__dirname, 'docker-compose.yml'); // Defining the path to save docker-compose.yml
+      const filePath = path.join(__dirname, 'docker-compose.yml');
 
-      // Writing the docker-compose.yml file to disk
       await fs.promises.writeFile(filePath, dockerComposeYml.trim());
       console.log('docker-compose.yml file created.');
 
