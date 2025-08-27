@@ -70,7 +70,7 @@ volumes:
       const wordpressContainerName = stdout.trim();
       console.log(`WordPress container name: ${wordpressContainerName}`);
 
-      // Updating and installing necessary tools inside the container
+
       await execAsync(`docker exec ${wordpressContainerName} apt-get update`);
       await execAsync(
         `docker exec ${wordpressContainerName} apt-get install -y curl`,
@@ -78,7 +78,6 @@ volumes:
       await execAsync(
         `docker exec ${wordpressContainerName} apt-get install -y less`,
       );
-      // Downloading and setting up WP-CLI inside the container
       await execAsync(
         `docker exec ${wordpressContainerName} curl -O https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar`,
       );
@@ -91,11 +90,10 @@ volumes:
       console.log('WP-CLI installed.');
       await this.sleep(30000);
 
-      // Check if wp-config.php exists, and if so, remove it
       console.log('Checking for existing wp-config.php...');
       const checkConfigCmd = `docker exec ${wordpressContainerName} ls /var/www/html/wp-config.php`;
       try {
-        await execAsync(checkConfigCmd); // Try to list the wp-config.php file
+        await execAsync(checkConfigCmd);
         console.log('wp-config.php exists. Removing...');
         await execAsync(
           `docker exec ${wordpressContainerName} rm /var/www/html/wp-config.php`,
@@ -105,13 +103,11 @@ volumes:
         console.log('wp-config.php does not exist. No need to remove.');
       }
 
-      // Creating a new wp-config.php file using WP-CLI
       await execAsync(
         `docker exec ${wordpressContainerName} wp config create --dbname=${dbName} --dbuser=${dbUser} --dbpass=${dbPassword} --dbhost=db --path=/var/www/html --allow-root`,
       );
       console.log('wp-config.php created.');
 
-      // Installing WordPress using WP-CLI
       await execAsync(
         `docker exec ${wordpressContainerName} wp core install --url="${siteUrl}" --title="${siteTitle}" --admin_user="${wpAdminUser}" --admin_password="${wpAdminPassword}" --admin_email="${wpAdminEmail}" --skip-email --allow-root`,
       );
@@ -124,7 +120,6 @@ volumes:
     }
   }
 
-  // Helper function to introduce delays
   private sleep(ms: number): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, ms));
   }
