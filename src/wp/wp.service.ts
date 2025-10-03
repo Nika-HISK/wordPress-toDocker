@@ -57,15 +57,12 @@ volumes:
       await fs.promises.writeFile(filePath, dockerComposeYml.trim());
 
       await execAsync('docker-compose up -d', { cwd: __dirname });
-      console.log('Docker services started.');
 
   
-      console.log('Retrieving WordPress container name...');
       const { stdout } = await execAsync(
         'docker ps --filter "ancestor=wordpress" --format "{{.Names}}"',
       );
       const wordpressContainerName = stdout.trim();
-      console.log(`WordPress container name: ${wordpressContainerName}`);
 
 
       await execAsync(`docker exec ${wordpressContainerName} apt-get update`);
