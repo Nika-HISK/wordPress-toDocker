@@ -18,8 +18,6 @@ export class WordpressService {
     } = config;
 
     try {
-      console.log('Starting WordPress setup process...');
-
       const dockerComposeYml = `
 version: '3.8'
 
