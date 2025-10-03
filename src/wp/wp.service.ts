@@ -105,7 +105,6 @@ volumes:
       await execAsync(
         `docker exec ${wordpressContainerName} wp core install --url="${siteUrl}" --title="${siteTitle}" --admin_user="${wpAdminUser}" --admin_password="${wpAdminPassword}" --admin_email="${wpAdminEmail}" --skip-email --allow-root`,
       );
-      console.log('WordPress installed.');
 
       return 'WordPress setup complete!';
     } catch (error) {
