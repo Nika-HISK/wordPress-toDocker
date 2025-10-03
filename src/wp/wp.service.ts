@@ -55,7 +55,6 @@ volumes:
       const filePath = path.join(__dirname, 'docker-compose.yml');
 
       await fs.promises.writeFile(filePath, dockerComposeYml.trim());
-      console.log('docker-compose.yml file created.');
 
       await execAsync('docker-compose up -d', { cwd: __dirname });
       console.log('Docker services started.');
